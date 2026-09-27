@@ -26,12 +26,12 @@
     const rect = activeElement.getBoundingClientRect();
     const width = wordButton.offsetWidth;
     const height = wordButton.offsetHeight;
-    const above = rect.top - height - 6;
+    const above = rect.top - height;
     wordButton.style.left = `${Math.min(
       Math.max(8, rect.left + rect.width / 2 - width / 2),
       Math.max(8, window.innerWidth - width - 8)
     )}px`;
-    wordButton.style.top = `${above >= 8 ? above : rect.bottom + 6}px`;
+    wordButton.style.top = `${above >= 0 ? above : rect.bottom}px`;
   }
 
   async function changeActiveWord(event) {
@@ -43,7 +43,8 @@
     if (!word) return;
     saving = true;
     wordButton.disabled = true;
-    wordButton.textContent = "Saving…";
+    wordButton.title = "Saving…";
+    wordButton.setAttribute("aria-label", "Saving…");
     try {
       // Read just before writing so changes made in the management page are retained.
       const result = await chrome.storage.local.get(STORAGE_KEY);
@@ -62,8 +63,8 @@
     } catch (error) {
       console.warn("Clever Youtube Subtitle: unable to update My Vocabulary", error);
       if (activeElement) {
-        wordButton.textContent = "Could not save. Try again.";
-        positionWordButton();
+        wordButton.title = "Could not save. Click to try again.";
+        wordButton.setAttribute("aria-label", wordButton.title);
       }
     } finally {
       saving = false;
@@ -89,8 +90,9 @@
     activeElement = element;
     const word = element.dataset.cleverWord;
     const removing = element.className === "clever-subtitle-known";
-    wordButton.textContent = `${removing ? "Remove" : "Add"} “${word}” ${removing ? "from" : "to"} My Vocabulary`;
-    wordButton.setAttribute("aria-label", wordButton.textContent);
+    wordButton.textContent = removing ? "−" : "+";
+    wordButton.title = `${removing ? "Remove" : "Add"} “${word}” ${removing ? "from" : "to"} My Vocabulary`;
+    wordButton.setAttribute("aria-label", wordButton.title);
     wordButton.hidden = false;
     positionWordButton();
   }

@@ -16,8 +16,9 @@ The ready-to-use English word model is included. You do not need Node.js to use 
 - Click the extension icon, then **Open My Vocabulary**.
 - Import a TXT or one-column CSV file, or type words into the page. You can add to your saved words or replace all of them.
 - Search, remove, and export words on the same page. The list shows 50 words at a time, even when you have thousands of words.
-- Move your mouse over a shown word in a YouTube caption to add it. The button says, for example, **Add “like” to My Vocabulary**.
-- Move your mouse over a hidden word to see it faintly. You can click the button to remove it from My Vocabulary.
+- Move your mouse over a shown word in a YouTube caption. Click the small **+** button just above it to add it to My Vocabulary.
+- Move your mouse over a hidden word to see it faintly. Click the small **−** button just above it to remove it from My Vocabulary.
+- Hover over either button to see the exact word that will be added or removed. For example, `likes` can use the base form `like`.
 
 Changes to My Vocabulary update the open caption right away. Turning off YouTube captions also turns off the filtered caption.
 

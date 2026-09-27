@@ -56,8 +56,8 @@ class FakeElement {
   addEventListener(type, listener) { this.listeners[type] = listener; }
   setAttribute(name, value) { this[name] = value; }
   getBoundingClientRect() { return { left: 100, top: 200, bottom: 220, width: 50 }; }
-  get offsetWidth() { return 100; }
-  get offsetHeight() { return 25; }
+  get offsetWidth() { return 28; }
+  get offsetHeight() { return 28; }
 }
 
 test("caption words keep spacing and can be added or removed from the hover button", async () => {
@@ -164,7 +164,11 @@ test("caption words keep spacing and can be added or removed from the hover butt
 
   documentListeners.mouseover({ target: visible[1] });
   const button = body.nodes.find((node) => node.className === "clever-subtitle-word-button");
-  assert.equal(button.textContent, "Add “like” to My Vocabulary");
+  assert.equal(button.textContent, "+");
+  assert.equal(button.title, "Add “like” to My Vocabulary");
+  assert.equal(button["aria-label"], button.title);
+  assert.equal(button.style.top, "172px");
+  assert.equal(button.style.left, "111px");
   await button.listeners.click({ preventDefault() {}, stopPropagation() {} });
   assert.deepEqual(Array.from(savedWords), ["existing", "like"]);
   assert.equal(segment.textContent, "He likes her");
@@ -173,7 +177,8 @@ test("caption words keep spacing and can be added or removed from the hover butt
   const knownLike = segment.querySelectorAll(".clever-subtitle-known")[0];
   assert.equal(knownLike.dataset.cleverWord, "like");
   documentListeners.mouseover({ target: knownLike });
-  assert.equal(button.textContent, "Remove “like” from My Vocabulary");
+  assert.equal(button.textContent, "−");
+  assert.equal(button.title, "Remove “like” from My Vocabulary");
   await button.listeners.click({ preventDefault() {}, stopPropagation() {} });
   assert.deepEqual(Array.from(savedWords), ["existing"]);
   assert.equal(segment.textContent, "He likes her");

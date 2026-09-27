@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Clever Youtube Subtitle</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="mark" aria-hidden="true">C</div>
+        <div>
+          <h1>Clever Youtube Subtitle</h1>
+          <p class="tagline">See words you don't know</p>
+        </div>
+      </header>
+
+      <section class="summary" aria-live="polite">
+        <span class="summary-label">Words in My Vocabulary</span>
+        <strong id="word-count">0</strong>
+      </section>
+
+      <button id="manage-button" type="button">Open My Vocabulary</button>
+      <p id="message" class="message" role="status" aria-live="polite"></p>
+
+      <p class="footer">Turn on captions (CC) on YouTube. Words in My Vocabulary stay hidden but keep their place. Hover over a hidden word to see it.</p>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

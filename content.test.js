@@ -1,0 +1,190 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const vm = require("node:vm");
+const words = require("./word-utils.js");
+
+class FakeText {
+  constructor(text) {
+    this.nodeType = 3;
+    this.textContent = text;
+  }
+}
+
+class FakeElement {
+  constructor(text = "") {
+    this.nodeType = 1;
+    this.className = "";
+    this.dataset = {};
+    this.style = {};
+    this.listeners = {};
+    this.textContent = text;
+  }
+
+  get textContent() {
+    return this.nodes.map((node) => node.textContent).join("");
+  }
+
+  set textContent(text) {
+    this.nodes = [new FakeText(text)];
+  }
+
+  closest(selector) {
+    if (selector.startsWith(".ytp-caption-segment .clever-subtitle-unknown")) {
+      return ["clever-subtitle-unknown", "clever-subtitle-known"].includes(this.className) ? this : null;
+    }
+    return this;
+  }
+
+  querySelectorAll(selector) {
+    const classes = selector.split(", ").map((name) => name.slice(1));
+    return this.nodes.filter((node) => classes.includes(node.className));
+  }
+
+  replaceChildren(fragment) {
+    this.nodes = [...fragment.nodes];
+    for (const node of this.nodes) node.parentElement = this;
+  }
+
+  appendChild(node) {
+    this.nodes.push(node);
+    node.parentElement = this;
+  }
+
+  contains(node) { return this === node || this.nodes.includes(node); }
+
+  addEventListener(type, listener) { this.listeners[type] = listener; }
+  setAttribute(name, value) { this[name] = value; }
+  getBoundingClientRect() { return { left: 100, top: 200, bottom: 220, width: 50 }; }
+  get offsetWidth() { return 100; }
+  get offsetHeight() { return 25; }
+}
+
+test("caption words keep spacing and can be added or removed from the hover button", async () => {
+  let savedWords = ["hello"];
+  let onStorageChanged;
+  let onMutation;
+  const documentListeners = {};
+  const segment = new FakeElement("Hello,   curious world!");
+  const segments = [segment];
+  const body = new FakeElement();
+  const context = {
+    CleverSubtitleWords: words,
+    Node: { ELEMENT_NODE: 1 },
+    setTimeout,
+    clearTimeout,
+    window: { innerWidth: 1200, addEventListener() {} },
+    document: {
+      documentElement: {},
+      body,
+      addEventListener: (type, listener) => { documentListeners[type] = listener; },
+      querySelectorAll: () => segments,
+      createElement: () => new FakeElement(),
+      createTextNode: (text) => new FakeText(text),
+      createDocumentFragment: () => ({
+        nodes: [],
+        appendChild(node) { this.nodes.push(node); }
+      })
+    },
+    chrome: {
+      runtime: { lastError: null },
+      storage: {
+        local: {
+          get: (_key, callback) => callback
+            ? callback({ knownWords: savedWords })
+            : Promise.resolve({ knownWords: savedWords }),
+          set: async ({ knownWords }) => {
+            savedWords = knownWords;
+            onStorageChanged({ knownWords: {} }, "local");
+          }
+        },
+        onChanged: { addListener: (listener) => { onStorageChanged = listener; } }
+      }
+    },
+    MutationObserver: class {
+      constructor(callback) { onMutation = callback; }
+      observe() {}
+    }
+  };
+  context.globalThis = context;
+  vm.runInNewContext(fs.readFileSync("content.js", "utf8"), context);
+
+  const hidden = () => segment.querySelectorAll(".clever-subtitle-known").map((node) => node.textContent);
+  assert.equal(segment.textContent, "Hello,   curious world!");
+  assert.deepEqual(hidden(), ["Hello,"]);
+
+  // Our own DOM mutation must not lose the original sentence.
+  onMutation([{ target: segment, addedNodes: [] }]);
+  assert.equal(segment.textContent, "Hello,   curious world!");
+  assert.deepEqual(hidden(), ["Hello,"]);
+
+  savedWords = ["hello", "curious", "world"];
+  onStorageChanged({ knownWords: {} }, "local");
+  assert.equal(segment.textContent, "Hello,   curious world!");
+  assert.deepEqual(hidden(), ["Hello,", "curious", "world!"]);
+
+  segment.textContent = "HELLO, something new.";
+  onMutation([{ target: segment, addedNodes: [] }]);
+  assert.equal(segment.textContent, "HELLO, something new.");
+  assert.deepEqual(hidden(), ["HELLO,"]);
+
+  savedWords = [];
+  onStorageChanged({ knownWords: {} }, "local");
+  assert.equal(segment.textContent, "HELLO, something new.");
+  assert.deepEqual(hidden(), []);
+
+  segment.textContent = "He likes her";
+  savedWords = ["like"];
+  onStorageChanged({ knownWords: {} }, "local");
+  assert.equal(segment.textContent, "He likes her");
+  assert.deepEqual(hidden(), ["likes"]);
+
+  segment.textContent = "saw.";
+  savedWords = ["see"];
+  onStorageChanged({ knownWords: {} }, "local");
+  assert.deepEqual(hidden(), ["saw."]);
+
+  const preceding = new FakeElement("a");
+  segments.unshift(preceding);
+  onMutation([{ target: preceding, addedNodes: [preceding] }]);
+  assert.equal(segment.textContent, "saw.");
+  assert.deepEqual(hidden(), []);
+
+  segments.shift();
+  onMutation([{ target: segment, addedNodes: [], removedNodes: [preceding] }]);
+  assert.deepEqual(hidden(), ["saw."]);
+
+  segment.textContent = "He likes her";
+  savedWords = ["existing"];
+  onStorageChanged({ knownWords: {} }, "local");
+  const visible = segment.querySelectorAll(".clever-subtitle-unknown");
+  assert.equal(segment.textContent, "He likes her");
+  assert.equal(visible[1].textContent, "likes");
+  assert.equal(visible[1].dataset.cleverWord, "like");
+
+  documentListeners.mouseover({ target: visible[1] });
+  const button = body.nodes.find((node) => node.className === "clever-subtitle-word-button");
+  assert.equal(button.textContent, "Add “like” to My Vocabulary");
+  await button.listeners.click({ preventDefault() {}, stopPropagation() {} });
+  assert.deepEqual(Array.from(savedWords), ["existing", "like"]);
+  assert.equal(segment.textContent, "He likes her");
+  assert.deepEqual(hidden(), ["likes"]);
+
+  const knownLike = segment.querySelectorAll(".clever-subtitle-known")[0];
+  assert.equal(knownLike.dataset.cleverWord, "like");
+  documentListeners.mouseover({ target: knownLike });
+  assert.equal(button.textContent, "Remove “like” from My Vocabulary");
+  await button.listeners.click({ preventDefault() {}, stopPropagation() {} });
+  assert.deepEqual(Array.from(savedWords), ["existing"]);
+  assert.equal(segment.textContent, "He likes her");
+  assert.deepEqual(hidden(), []);
+
+  segment.textContent = "A new word";
+  onMutation([{ target: segment, addedNodes: [] }]);
+  const newWord = segment.querySelectorAll(".clever-subtitle-unknown").find((node) => node.textContent === "word");
+  documentListeners.mouseover({ target: newWord });
+  assert.equal(button.hidden, false);
+  segments.pop();
+  onMutation([{ target: segment, addedNodes: [] }]);
+  assert.equal(button.hidden, true);
+});

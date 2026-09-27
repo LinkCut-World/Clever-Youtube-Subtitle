@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>My Vocabulary · Clever Youtube Subtitle</title>
+    <link rel="stylesheet" href="options.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="shell header-content">
+        <div class="mark" aria-hidden="true">C</div>
+        <div>
+          <p class="eyebrow">CLEVER YOUTUBE SUBTITLE</p>
+          <h1>My Vocabulary</h1>
+          <p class="subtitle">Save words you know. YouTube captions update when you save.</p>
+        </div>
+      </div>
+    </header>
+
+    <main class="shell">
+      <section class="overview" aria-label="My Vocabulary overview">
+        <div>
+          <span class="overview-label">Words saved</span>
+          <strong id="word-count">0</strong>
+        </div>
+        <p>Your words stay in this Chrome browser. They are not sent to a server.</p>
+      </section>
+
+      <p id="message" class="message" role="status" aria-live="polite"></p>
+
+      <div class="editor-grid">
+        <section class="card" aria-labelledby="import-heading">
+          <h2 id="import-heading">Import words</h2>
+          <p class="section-help">Use a TXT or one-column CSV file. Separate words with a new line, space, comma, or semicolon.</p>
+          <label class="field-label" for="word-file">Choose a file</label>
+          <input id="word-file" type="file" accept=".txt,.csv,text/plain,text/csv">
+          <p id="import-preview" class="preview" aria-live="polite">No file chosen</p>
+          <fieldset class="import-mode">
+            <legend>How to import</legend>
+            <label><input type="radio" name="import-mode" value="merge" checked> Add to My Vocabulary</label>
+            <label><input type="radio" name="import-mode" value="replace"> Replace My Vocabulary</label>
+          </fieldset>
+          <button id="import-button" class="primary" type="button" disabled>Import words</button>
+        </section>
+
+        <section class="card" aria-labelledby="add-heading">
+          <h2 id="add-heading">Add words</h2>
+          <p class="section-help">Type one word or paste many words. Words already saved are skipped.</p>
+          <label class="field-label" for="add-input">Words</label>
+          <textarea id="add-input" rows="7" spellcheck="false" placeholder="apple, because, listen"></textarea>
+          <button id="add-button" class="primary" type="button">Add to My Vocabulary</button>
+        </section>
+      </div>
+
+      <section class="card library" aria-labelledby="library-heading">
+        <div class="library-header">
+          <div>
+            <h2 id="library-heading">Browse words</h2>
+            <p class="section-help">Each page shows 50 words. Search checks the whole list.</p>
+          </div>
+          <div class="library-actions">
+            <button id="export-button" class="secondary" type="button">Export TXT</button>
+            <button id="clear-button" class="danger" type="button">Remove all words</button>
+          </div>
+        </div>
+
+        <label class="field-label" for="search-input">Search words</label>
+        <input id="search-input" type="search" placeholder="Type a word or part of one" autocomplete="off">
+        <p id="result-count" class="result-count" aria-live="polite">0 words</p>
+        <ul id="word-list" class="word-list" aria-label="Words in My Vocabulary"></ul>
+        <p id="empty-state" class="empty-state" hidden>No words found.</p>
+        <nav class="pagination" aria-label="Pages of words">
+          <button id="prev-button" class="secondary" type="button">Previous</button>
+          <span id="page-label">Page 1 of 1</span>
+          <button id="next-button" class="secondary" type="button">Next</button>
+        </nav>
+      </section>
+    </main>
+
+    <script src="word-utils.js"></script>
+    <script src="vocabulary.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

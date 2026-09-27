@@ -1,0 +1,16 @@
+{
+  "name": "clever-youtube-subtitle",
+  "version": "1.6.0",
+  "private": true,
+  "scripts": {
+    "build": "esbuild lemma-entry.js --bundle --minify --platform=browser --format=iife --outfile=lemma-bundle.js --legal-comments=external",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "wink-nlp": "2.4.0",
+    "wink-eng-lite-web-model": "1.8.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

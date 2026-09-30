@@ -15,6 +15,15 @@ class FakeElement {
   constructor(text = "") {
     this.nodeType = 1;
     this.className = "";
+    this.classList = {
+      contains: (name) => this.className.split(/\s+/u).includes(name),
+      add: (name) => {
+        if (!this.classList.contains(name)) this.className = `${this.className} ${name}`.trim();
+      },
+      remove: (name) => {
+        this.className = this.className.split(/\s+/u).filter((entry) => entry !== name).join(" ");
+      }
+    };
     this.dataset = {};
     this.style = {};
     this.listeners = {};
@@ -31,14 +40,14 @@ class FakeElement {
 
   closest(selector) {
     if (selector.startsWith(".ytp-caption-segment .clever-subtitle-unknown")) {
-      return ["clever-subtitle-unknown", "clever-subtitle-known"].includes(this.className) ? this : null;
+      return ["clever-subtitle-unknown", "clever-subtitle-known"].some((name) => this.classList.contains(name)) ? this : null;
     }
     return this;
   }
 
   querySelectorAll(selector) {
     const classes = selector.split(", ").map((name) => name.slice(1));
-    return this.nodes.filter((node) => classes.includes(node.className));
+    return this.nodes.filter((node) => classes.some((name) => node.classList?.contains(name)));
   }
 
   replaceChildren(fragment) {
@@ -176,7 +185,15 @@ test("caption words keep spacing and can be added or removed from the hover butt
 
   const knownLike = segment.querySelectorAll(".clever-subtitle-known")[0];
   assert.equal(knownLike.dataset.cleverWord, "like");
-  documentListeners.mouseover({ target: knownLike });
+  let touchWasHandled = false;
+  documentListeners.pointerdown({
+    pointerType: "touch",
+    target: knownLike,
+    preventDefault() { touchWasHandled = true; },
+    stopPropagation() {}
+  });
+  assert.equal(touchWasHandled, true);
+  assert.equal(knownLike.classList.contains("clever-subtitle-active"), true);
   assert.equal(button.textContent, "−");
   assert.equal(button.title, "Remove “like” from My Vocabulary");
   await button.listeners.click({ preventDefault() {}, stopPropagation() {} });

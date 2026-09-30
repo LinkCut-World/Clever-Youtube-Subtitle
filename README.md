@@ -22,6 +22,20 @@ The ready-to-use English word model is included. You do not need Node.js to use 
 
 Changes to My Vocabulary update the open caption right away. Turning off YouTube captions also turns off the filtered caption.
 
+## Move your words to another browser
+
+Open **My Vocabulary** on your first browser and click **Export TXT**. Move the saved TXT file to your other device. In the other browser, open **My Vocabulary**, choose that file, select **Replace My Vocabulary**, and click **Import words**. Use **Add to My Vocabulary** instead if you want to keep words already saved on the other device.
+
+This is a manual transfer. My Vocabulary uses local browser storage, so it does not sync by itself. Keep the exported TXT file as a backup.
+
+### Kiwi Browser on Android
+
+Kiwi can install a ZIP of the extension from its extensions page. Open **Extensions**, turn on **Developer mode**, tap **+ (from .zip/.crx/.user.js)**, and choose the extension ZIP. Then open **My Vocabulary** in Kiwi and import the TXT file you moved from your computer.
+
+On a touch screen, tap a caption word to show the **+** or **−** button, then tap the button. If YouTube captions are not filtered on the mobile site, use Kiwi's **Desktop site** mode for YouTube and turn on CC there.
+
+[Kiwi Browser is archived](https://github.com/kiwibrowser/src.next/blob/kiwi/README.md), so support for this Manifest V3 extension may vary by Kiwi version.
+
 ## How words match
 
 Matching ignores capital letters and marks at the start or end of a word. The extension also checks the sentence to find a word's base form. For example, saving `like` can hide `likes`, `liked`, and `liking`. The button shows the word that will be saved or removed.

@@ -17,6 +17,7 @@
   function hideWordButton() {
     clearTimeout(hideTimer);
     hideTimer = null;
+    activeElement?.classList.remove("clever-subtitle-active");
     activeElement = null;
     if (wordButton) wordButton.hidden = true;
   }
@@ -39,7 +40,7 @@
     event.stopPropagation();
     if (!activeElement || saving) return;
     const word = activeElement.dataset.cleverWord;
-    const removing = activeElement.className === "clever-subtitle-known";
+    const removing = activeElement.classList.contains("clever-subtitle-known");
     if (!word) return;
     saving = true;
     wordButton.disabled = true;
@@ -87,9 +88,11 @@
     }
     const host = document.fullscreenElement || document.body;
     if (wordButton.parentElement !== host) host.appendChild(wordButton);
+    if (activeElement !== element) activeElement?.classList.remove("clever-subtitle-active");
     activeElement = element;
+    activeElement.classList.add("clever-subtitle-active");
     const word = element.dataset.cleverWord;
-    const removing = element.className === "clever-subtitle-known";
+    const removing = element.classList.contains("clever-subtitle-known");
     wordButton.textContent = removing ? "−" : "+";
     wordButton.title = `${removing ? "Remove" : "Add"} “${word}” ${removing ? "from" : "to"} My Vocabulary`;
     wordButton.setAttribute("aria-label", wordButton.title);
@@ -181,6 +184,21 @@
     );
     if (element) showWordButton(element);
   });
+
+  document.addEventListener("pointerdown", (event) => {
+    if (event.pointerType !== "touch") return;
+    if (event.target === wordButton) return;
+    const element = event.target.closest?.(
+      ".ytp-caption-segment .clever-subtitle-unknown, .ytp-caption-segment .clever-subtitle-known"
+    );
+    if (!element) {
+      hideWordButton();
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    showWordButton(element);
+  }, true);
 
   document.addEventListener("mouseout", (event) => {
     if (!activeElement) return;

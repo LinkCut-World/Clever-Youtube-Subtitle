@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Clever Youtube Subtitle",
-  "version": "1.6.1",
+  "version": "1.7.0",
   "description": "Hide words you know in YouTube captions. Hover to see or change them.",
   "permissions": ["storage"],
   "action": {
@@ -14,7 +14,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://www.youtube.com/*"],
+      "matches": ["https://www.youtube.com/*", "https://m.youtube.com/*"],
       "js": ["lemma-bundle.js", "word-utils.js", "content.js"],
       "css": ["captions.css"],
       "run_at": "document_idle"

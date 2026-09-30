@@ -4,7 +4,8 @@
   cursor: pointer;
 }
 
-.ytp-caption-segment .clever-subtitle-known:hover {
+.ytp-caption-segment .clever-subtitle-known:hover,
+.ytp-caption-segment .clever-subtitle-known.clever-subtitle-active {
   opacity: 0.35 !important;
 }
 
@@ -43,4 +44,12 @@
 .clever-subtitle-word-button:disabled {
   cursor: default;
   opacity: 0.7;
+}
+
+@media (pointer: coarse) {
+  .clever-subtitle-word-button {
+    width: 36px;
+    height: 36px;
+    font: 700 24px/34px Arial, sans-serif;
+  }
 }

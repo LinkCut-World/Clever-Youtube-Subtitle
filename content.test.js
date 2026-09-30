@@ -65,6 +65,7 @@ class FakeElement {
   addEventListener(type, listener) { this.listeners[type] = listener; }
   setAttribute(name, value) { this[name] = value; }
   getBoundingClientRect() { return { left: 100, top: 200, bottom: 220, width: 50 }; }
+  getClientRects() { return []; }
   get offsetWidth() { return 28; }
   get offsetHeight() { return 28; }
 }
@@ -74,6 +75,7 @@ test("caption words keep spacing and can be added or removed from the hover butt
   let onStorageChanged;
   let onMutation;
   const documentListeners = {};
+  const windowListeners = {};
   const segment = new FakeElement("Hello,   curious world!");
   const segments = [segment];
   const body = new FakeElement();
@@ -82,12 +84,17 @@ test("caption words keep spacing and can be added or removed from the hover butt
     Node: { ELEMENT_NODE: 1 },
     setTimeout,
     clearTimeout,
-    window: { innerWidth: 1200, addEventListener() {} },
+    window: {
+      innerWidth: 1200,
+      addEventListener(type, listener) { windowListeners[type] = listener; }
+    },
     document: {
       documentElement: {},
       body,
       addEventListener: (type, listener) => { documentListeners[type] = listener; },
-      querySelectorAll: () => segments,
+      querySelectorAll: (selector) => selector === ".ytp-caption-segment"
+        ? segments
+        : segments.flatMap((item) => item.querySelectorAll(".clever-subtitle-known, .clever-subtitle-unknown")),
       createElement: () => new FakeElement(),
       createTextNode: (text) => new FakeText(text),
       createDocumentFragment: () => ({
@@ -185,17 +192,48 @@ test("caption words keep spacing and can be added or removed from the hover butt
 
   const knownLike = segment.querySelectorAll(".clever-subtitle-known")[0];
   assert.equal(knownLike.dataset.cleverWord, "like");
+  knownLike.getClientRects = () => [{ left: 100, top: 200, right: 150, bottom: 220, width: 50, height: 20 }];
+  const playerOverlay = new FakeElement();
   let touchWasHandled = false;
-  documentListeners.pointerdown({
+  windowListeners.pointerdown({
     pointerType: "touch",
-    target: knownLike,
+    target: playerOverlay,
+    clientX: 125,
+    clientY: 210,
     preventDefault() { touchWasHandled = true; },
-    stopPropagation() {}
+    stopImmediatePropagation() {}
   });
   assert.equal(touchWasHandled, true);
   assert.equal(knownLike.classList.contains("clever-subtitle-active"), true);
   assert.equal(button.textContent, "−");
   assert.equal(button.title, "Remove “like” from My Vocabulary");
+  let touchStartWasBlocked = false;
+  windowListeners.touchstart({
+    target: playerOverlay,
+    changedTouches: [{ clientX: 125, clientY: 210 }],
+    preventDefault() { touchStartWasBlocked = true; },
+    stopImmediatePropagation() {}
+  });
+  assert.equal(touchStartWasBlocked, true);
+  let touchEndWasBlocked = false;
+  windowListeners.touchend({
+    target: playerOverlay,
+    changedTouches: [{ clientX: 125, clientY: 210 }],
+    preventDefault() { touchEndWasBlocked = true; },
+    stopImmediatePropagation() {}
+  });
+  assert.equal(touchEndWasBlocked, true);
+  documentListeners.mouseout({ target: knownLike, relatedTarget: null });
+  assert.equal(button.hidden, false);
+  let playerClickWasBlocked = false;
+  windowListeners.click({
+    target: playerOverlay,
+    clientX: 125,
+    clientY: 210,
+    preventDefault() { playerClickWasBlocked = true; },
+    stopImmediatePropagation() {}
+  });
+  assert.equal(playerClickWasBlocked, true);
   await button.listeners.click({ preventDefault() {}, stopPropagation() {} });
   assert.deepEqual(Array.from(savedWords), ["existing"]);
   assert.equal(segment.textContent, "He likes her");
@@ -206,6 +244,18 @@ test("caption words keep spacing and can be added or removed from the hover butt
   const newWord = segment.querySelectorAll(".clever-subtitle-unknown").find((node) => node.textContent === "word");
   documentListeners.mouseover({ target: newWord });
   assert.equal(button.hidden, false);
+  let outsideTapWasBlocked = false;
+  windowListeners.pointerdown({
+    pointerType: "touch",
+    target: playerOverlay,
+    clientX: 900,
+    clientY: 100,
+    preventDefault() { outsideTapWasBlocked = true; },
+    stopImmediatePropagation() {}
+  });
+  assert.equal(outsideTapWasBlocked, false);
+  assert.equal(button.hidden, true);
+  documentListeners.mouseover({ target: newWord });
   segments.pop();
   onMutation([{ target: segment, addedNodes: [] }]);
   assert.equal(button.hidden, true);

@@ -32,7 +32,7 @@ This is a manual transfer. My Vocabulary uses local browser storage, so it does 
 
 Kiwi can install a ZIP of the extension from its extensions page. Open **Extensions**, turn on **Developer mode**, tap **+ (from .zip/.crx/.user.js)**, and choose the extension ZIP. Then open **My Vocabulary** in Kiwi and import the TXT file you moved from your computer.
 
-On a touch screen, tap a caption word to show the **+** or **−** button, then tap the button. If YouTube captions are not filtered on the mobile site, use Kiwi's **Desktop site** mode for YouTube and turn on CC there.
+On a touch screen, tap a caption word to show the **+** or **−** button, then tap the button. The button stays open until you use it or tap outside the word. If YouTube captions are not filtered on the mobile site, use Kiwi's **Desktop site** mode for YouTube and turn on CC there.
 
 [Kiwi Browser is archived](https://github.com/kiwibrowser/src.next/blob/kiwi/README.md), so support for this Manifest V3 extension may vary by Kiwi version.
 

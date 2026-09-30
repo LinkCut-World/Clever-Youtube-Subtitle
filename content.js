@@ -2,6 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "knownWords";
+  const WORD_SELECTOR = ".ytp-caption-segment .clever-subtitle-unknown, .ytp-caption-segment .clever-subtitle-known";
   const { normalizeWord, captionPartsForSegments } = globalThis.CleverSubtitleWords;
   const originals = new WeakMap();
   let knownWords = new Set();
@@ -13,12 +14,15 @@
   let activeElement;
   let hideTimer;
   let saving = false;
+  let touchSelection = false;
+  let blockedTouch = null;
 
   function hideWordButton() {
     clearTimeout(hideTimer);
     hideTimer = null;
     activeElement?.classList.remove("clever-subtitle-active");
     activeElement = null;
+    touchSelection = false;
     if (wordButton) wordButton.hidden = true;
   }
 
@@ -73,7 +77,7 @@
     }
   }
 
-  function showWordButton(element) {
+  function showWordButton(element, fromTouch = false) {
     if (saving) return;
     clearTimeout(hideTimer);
     hideTimer = null;
@@ -88,7 +92,12 @@
     }
     const host = document.fullscreenElement || document.body;
     if (wordButton.parentElement !== host) host.appendChild(wordButton);
-    if (activeElement !== element) activeElement?.classList.remove("clever-subtitle-active");
+    if (activeElement !== element) {
+      activeElement?.classList.remove("clever-subtitle-active");
+      touchSelection = fromTouch;
+    } else if (fromTouch) {
+      touchSelection = true;
+    }
     activeElement = element;
     activeElement.classList.add("clever-subtitle-active");
     const word = element.dataset.cleverWord;
@@ -173,35 +182,93 @@
     if (areaName === "local" && changes[STORAGE_KEY]) loadWords();
   });
 
+  function wordAtPoint(target, x, y) {
+    const direct = target?.closest?.(WORD_SELECTOR);
+    if (direct) return direct;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+
+    let selected = null;
+    let bestDistance = Infinity;
+    for (const element of document.querySelectorAll(WORD_SELECTOR)) {
+      for (const rect of element.getClientRects()) {
+        if (rect.width <= 0 || rect.height <= 0) continue;
+        const dx = Math.max(rect.left - x, 0, x - rect.right);
+        const dy = Math.max(rect.top - y, 0, y - rect.bottom);
+        if (dx > 4 || dy > 4) continue;
+        const distance = dx * dx + dy * dy;
+        if (distance < bestDistance) {
+          selected = element;
+          bestDistance = distance;
+        }
+      }
+    }
+    return selected;
+  }
+
+  function handleTouchStart(event, x, y) {
+    if (event.target === wordButton) return;
+    const element = wordAtPoint(event.target, x, y);
+    if (!element) {
+      blockedTouch = null;
+      hideWordButton();
+      return;
+    }
+    blockedTouch = { x, y, until: Date.now() + 900 };
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    showWordButton(element, true);
+  }
+
+  function isBlockedTouch(x, y) {
+    return blockedTouch && Date.now() <= blockedTouch.until &&
+      Math.abs(x - blockedTouch.x) <= 24 && Math.abs(y - blockedTouch.y) <= 24;
+  }
+
   document.addEventListener("mouseover", (event) => {
     if (event.target === wordButton) {
       clearTimeout(hideTimer);
       hideTimer = null;
       return;
     }
-    const element = event.target.closest?.(
-      ".ytp-caption-segment .clever-subtitle-unknown, .ytp-caption-segment .clever-subtitle-known"
-    );
+    const element = event.target.closest?.(WORD_SELECTOR);
     if (element) showWordButton(element);
   });
 
-  document.addEventListener("pointerdown", (event) => {
+  window.addEventListener("pointerdown", (event) => {
     if (event.pointerType !== "touch") return;
-    if (event.target === wordButton) return;
-    const element = event.target.closest?.(
-      ".ytp-caption-segment .clever-subtitle-unknown, .ytp-caption-segment .clever-subtitle-known"
-    );
-    if (!element) {
-      hideWordButton();
-      return;
+    handleTouchStart(event, event.clientX, event.clientY);
+  }, true);
+
+  window.addEventListener("touchstart", (event) => {
+    const touch = event.changedTouches[0];
+    if (touch) handleTouchStart(event, touch.clientX, touch.clientY);
+  }, { capture: true, passive: false });
+
+  window.addEventListener("pointerup", (event) => {
+    if (event.pointerType === "touch" && isBlockedTouch(event.clientX, event.clientY)) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
     }
+  }, true);
+
+  window.addEventListener("touchend", (event) => {
+    const touch = event.changedTouches[0];
+    if (touch && isBlockedTouch(touch.clientX, touch.clientY)) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+  }, { capture: true, passive: false });
+
+  window.addEventListener("click", (event) => {
+    if (event.target === wordButton) return;
+    if (!isBlockedTouch(event.clientX, event.clientY)) return;
     event.preventDefault();
-    event.stopPropagation();
-    showWordButton(element);
+    event.stopImmediatePropagation();
+    blockedTouch = null;
   }, true);
 
   document.addEventListener("mouseout", (event) => {
-    if (!activeElement) return;
+    if (!activeElement || touchSelection) return;
     if (event.target !== activeElement && event.target !== wordButton) return;
     const next = event.relatedTarget;
     if (next === activeElement || next === wordButton) return;

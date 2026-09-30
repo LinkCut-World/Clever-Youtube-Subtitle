@@ -1,6 +1,6 @@
 {
   "name": "clever-youtube-subtitle",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "private": true,
   "scripts": {
     "build": "esbuild lemma-entry.js --bundle --minify --platform=browser --format=iife --outfile=lemma-bundle.js --legal-comments=external",

@@ -225,6 +225,28 @@ test("caption words keep spacing and can be added or removed from the hover butt
   assert.equal(touchEndWasBlocked, true);
   documentListeners.mouseout({ target: knownLike, relatedTarget: null });
   assert.equal(button.hidden, false);
+  await button.listeners.click({ preventDefault() {}, stopPropagation() {} });
+  assert.deepEqual(Array.from(savedWords), ["existing", "like"]);
+  let accidentalButtonClickWasBlocked = false;
+  windowListeners.click({
+    target: button,
+    clientX: 125,
+    clientY: 210,
+    preventDefault() { accidentalButtonClickWasBlocked = true; },
+    stopImmediatePropagation() {}
+  });
+  assert.equal(accidentalButtonClickWasBlocked, true);
+  assert.deepEqual(Array.from(savedWords), ["existing", "like"]);
+  assert.equal(button.hidden, false);
+
+  windowListeners.pointerdown({
+    pointerType: "touch",
+    target: playerOverlay,
+    clientX: 125,
+    clientY: 210,
+    preventDefault() {},
+    stopImmediatePropagation() {}
+  });
   let playerClickWasBlocked = false;
   windowListeners.click({
     target: playerOverlay,
@@ -234,6 +256,7 @@ test("caption words keep spacing and can be added or removed from the hover butt
     stopImmediatePropagation() {}
   });
   assert.equal(playerClickWasBlocked, true);
+  button.listeners.pointerdown({ pointerType: "touch", stopPropagation() {} });
   await button.listeners.click({ preventDefault() {}, stopPropagation() {} });
   assert.deepEqual(Array.from(savedWords), ["existing"]);
   assert.equal(segment.textContent, "He likes her");
@@ -255,7 +278,22 @@ test("caption words keep spacing and can be added or removed from the hover butt
   });
   assert.equal(outsideTapWasBlocked, false);
   assert.equal(button.hidden, true);
-  documentListeners.mouseover({ target: newWord });
+  newWord.getClientRects = () => [{ left: 100, top: 200, right: 150, bottom: 220, width: 50, height: 20 }];
+  windowListeners.pointerdown({
+    pointerType: "touch",
+    target: playerOverlay,
+    clientX: 125,
+    clientY: 210,
+    preventDefault() {},
+    stopImmediatePropagation() {}
+  });
+  const replacementFirst = new FakeElement("A new");
+  const replacementLast = new FakeElement("word");
+  segments.splice(0, 1, replacementFirst, replacementLast);
+  onMutation([{ target: replacementLast, addedNodes: [replacementLast] }]);
+  assert.equal(button.hidden, false);
+  assert.equal(replacementLast.querySelectorAll(".clever-subtitle-unknown")
+    .find((node) => node.textContent === "word").classList.contains("clever-subtitle-active"), true);
   segments.pop();
   onMutation([{ target: segment, addedNodes: [] }]);
   assert.equal(button.hidden, true);

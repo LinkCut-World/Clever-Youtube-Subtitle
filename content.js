@@ -16,6 +16,9 @@
   let saving = false;
   let touchSelection = false;
   let blockedTouch = null;
+  let wordButtonArmed = false;
+  let activeCaptionText = null;
+  let activeRect = null;
 
   function hideWordButton() {
     clearTimeout(hideTimer);
@@ -23,12 +26,16 @@
     activeElement?.classList.remove("clever-subtitle-active");
     activeElement = null;
     touchSelection = false;
+    wordButtonArmed = false;
+    activeCaptionText = null;
+    activeRect = null;
     if (wordButton) wordButton.hidden = true;
   }
 
   function positionWordButton() {
     if (!activeElement || !wordButton || wordButton.hidden) return;
     const rect = activeElement.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) activeRect = rect;
     const width = wordButton.offsetWidth;
     const height = wordButton.offsetHeight;
     const above = rect.top - height;
@@ -39,10 +46,17 @@
     wordButton.style.top = `${above >= 0 ? above : rect.bottom}px`;
   }
 
+  function captionText(texts) {
+    return texts.join(" ").replace(/\s+/gu, " ").trim();
+  }
+
   async function changeActiveWord(event) {
     event.preventDefault();
     event.stopPropagation();
     if (!activeElement || saving) return;
+    // The tap that opened this button can also produce a click on the new button.
+    // Wait for a separate touch on the button before changing stored words.
+    if (touchSelection && blockedTouch && Date.now() <= blockedTouch.until && !wordButtonArmed) return;
     const word = activeElement.dataset.cleverWord;
     const removing = activeElement.classList.contains("clever-subtitle-known");
     if (!word) return;
@@ -86,7 +100,20 @@
       wordButton.type = "button";
       wordButton.className = "clever-subtitle-word-button";
       wordButton.hidden = true;
-      wordButton.addEventListener("pointerdown", (event) => event.stopPropagation());
+      wordButton.addEventListener("pointerdown", (event) => {
+        if (event.pointerType !== "touch" || !blockedTouch || blockedTouch.released || Date.now() > blockedTouch.until) {
+          blockedTouch = null;
+          wordButtonArmed = true;
+        }
+        event.stopPropagation();
+      });
+      wordButton.addEventListener("touchstart", (event) => {
+        if (!blockedTouch || blockedTouch.released || Date.now() > blockedTouch.until) {
+          blockedTouch = null;
+          wordButtonArmed = true;
+        }
+        event.stopPropagation();
+      }, { passive: true });
       wordButton.addEventListener("mousedown", (event) => event.stopPropagation());
       wordButton.addEventListener("click", changeActiveWord);
     }
@@ -99,6 +126,8 @@
       touchSelection = true;
     }
     activeElement = element;
+    activeCaptionText = captionText([...document.querySelectorAll(".ytp-caption-segment")]
+      .map((segment) => segment.textContent || ""));
     activeElement.classList.add("clever-subtitle-active");
     const word = element.dataset.cleverWord;
     const removing = element.classList.contains("clever-subtitle-known");
@@ -122,7 +151,6 @@
         previous.context === context &&
         existingCount === wrappedCount) return;
 
-    if (activeElement) hideWordButton();
     if (wrappedCount === 0) {
       if (existingCount) segment.textContent = current;
     } else {
@@ -152,9 +180,14 @@
   function updateCaptions() {
     // YouTube adds/removes these nodes as captions change or are toggled.
     const segments = [...document.querySelectorAll(".ytp-caption-segment")];
-    if (activeElement && !segments.some((segment) => segment.contains(activeElement))) {
-      hideWordButton();
-    }
+    const selection = activeElement && {
+      captionText: activeCaptionText,
+      text: activeElement.textContent,
+      word: activeElement.dataset.cleverWord,
+      known: activeElement.classList.contains("clever-subtitle-known"),
+      rect: activeRect,
+      touch: touchSelection
+    };
     const texts = segments.map((segment) => segment.textContent || "");
     const context = JSON.stringify(texts);
     if (context !== analyzedContext || wordsRevision !== analyzedRevision) {
@@ -163,6 +196,33 @@
       analyzedParts = captionPartsForSegments(texts, knownWords);
     }
     segments.forEach((segment, index) => updateSegment(segment, analyzedParts[index], context));
+    if (!selection) return;
+    // YouTube may rebuild or split a caption when player controls appear.
+    // Keep the selected word if the displayed sentence is still the same.
+    if (selection.captionText !== captionText(texts)) {
+      hideWordButton();
+      return;
+    }
+    if (segments.some((segment) => segment.contains(activeElement))) {
+      positionWordButton();
+      return;
+    }
+    const candidates = [...document.querySelectorAll(WORD_SELECTOR)].filter((element) =>
+      element.textContent === selection.text &&
+      element.dataset.cleverWord === selection.word &&
+      element.classList.contains("clever-subtitle-known") === selection.known
+    );
+    candidates.sort((a, b) => {
+      const point = selection.rect;
+      if (!point) return 0;
+      const distance = (element) => {
+        const rect = element.getBoundingClientRect();
+        return Math.abs(rect.left - point.left) + Math.abs(rect.top - point.top);
+      };
+      return distance(a) - distance(b);
+    });
+    if (candidates[0]) showWordButton(candidates[0], selection.touch);
+    else hideWordButton();
   }
 
   function loadWords() {
@@ -213,7 +273,8 @@
       hideWordButton();
       return;
     }
-    blockedTouch = { x, y, until: Date.now() + 900 };
+    blockedTouch = { x, y, until: Date.now() + 900, released: false };
+    wordButtonArmed = false;
     event.preventDefault();
     event.stopImmediatePropagation();
     showWordButton(element, true);
@@ -248,6 +309,7 @@
     if (event.pointerType === "touch" && isBlockedTouch(event.clientX, event.clientY)) {
       event.preventDefault();
       event.stopImmediatePropagation();
+      blockedTouch.released = true;
     }
   }, true);
 
@@ -256,11 +318,19 @@
     if (touch && isBlockedTouch(touch.clientX, touch.clientY)) {
       event.preventDefault();
       event.stopImmediatePropagation();
+      blockedTouch.released = true;
     }
   }, { capture: true, passive: false });
 
   window.addEventListener("click", (event) => {
-    if (event.target === wordButton) return;
+    if (event.target === wordButton) {
+      if (blockedTouch && Date.now() <= blockedTouch.until && !wordButtonArmed) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        blockedTouch = null;
+      }
+      return;
+    }
     if (!isBlockedTouch(event.clientX, event.clientY)) return;
     event.preventDefault();
     event.stopImmediatePropagation();

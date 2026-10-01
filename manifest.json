@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
   "name": "Clever Youtube Subtitle",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "description": "Hide words you know in YouTube captions. Hover to see or change them.",
   "permissions": ["storage", "alarms"],
-  "host_permissions": ["https://api.github.com/*"],
+  "optional_host_permissions": ["https://*/*", "http://*/*"],
   "background": {
     "service_worker": "background.js"
   },

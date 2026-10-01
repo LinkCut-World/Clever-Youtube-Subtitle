@@ -1,16 +1,21 @@
 {
   "name": "clever-youtube-subtitle",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "private": true,
   "scripts": {
     "build": "esbuild lemma-entry.js --bundle --minify --platform=browser --format=iife --outfile=lemma-bundle.js --legal-comments=external",
+    "build:git": "node build-git.cjs",
     "test": "node --test"
   },
   "dependencies": {
-    "wink-nlp": "2.4.0",
-    "wink-eng-lite-web-model": "1.8.1"
+    "@isomorphic-git/lightning-fs": "4.10.3",
+    "buffer": "6.0.3",
+    "isomorphic-git": "1.42.6",
+    "wink-eng-lite-web-model": "1.8.1",
+    "wink-nlp": "2.4.0"
   },
   "devDependencies": {
-    "esbuild": "0.28.2"
+    "esbuild": "0.28.2",
+    "fake-indexeddb": "6.2.5"
   }
 }

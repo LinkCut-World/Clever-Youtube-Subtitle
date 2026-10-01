@@ -23,6 +23,8 @@
     clearButton: document.getElementById("clear-button"),
     syncRepository: document.getElementById("sync-repository"),
     syncToken: document.getElementById("sync-token"),
+    syncUsername: document.getElementById("sync-username"),
+    syncBranch: document.getElementById("sync-branch"),
     syncConnect: document.getElementById("sync-connect"),
     syncNow: document.getElementById("sync-now"),
     syncDisable: document.getElementById("sync-disable"),
@@ -115,8 +117,8 @@
     try {
       const status = await background({ type: "sync:status" });
       syncConnected = status.connected;
-      elements.syncRepository.value = status.repository
-        ? `https://github.com/${status.repository}` : "";
+      elements.syncRepository.value = status.repositoryUrl;
+      elements.syncBranch.value = status.branch;
       if (!status.connected) showSyncStatus("Sync is off. Your words stay in this browser.");
       else if (status.lastError) showSyncStatus(`Sync needs attention: ${status.lastError}`, true);
       else if (status.lastSuccess) {
@@ -136,6 +138,7 @@
       const result = await background(message);
       if (result.words) words = canonicalWords(result.words);
       elements.syncToken.value = "";
+      elements.syncUsername.value = "";
       showMessage(successText);
       await refreshSyncStatus();
     } catch (error) {
@@ -253,25 +256,31 @@
     await saveWords({ replace: [] }, "Removed all words from My Vocabulary.");
   });
 
-  elements.syncConnect.addEventListener("click", () => {
+  elements.syncConnect.addEventListener("click", async () => {
+    if (syncBusy) return;
     const address = elements.syncRepository.value;
     try {
-      const safe = new URL(address);
-      safe.username = "";
-      safe.password = "";
-      elements.syncRepository.value = safe.href;
-    } catch { /* The background will show a clear URL error. */ }
+      const parsed = globalThis.CleverSubtitleGitSync.parseRepositoryAddress(address);
+      elements.syncRepository.value = parsed.url;
+      const allowed = await chrome.permissions.request({ origins: [parsed.origin] });
+      if (!allowed) {
+        showSyncStatus("Allow access to this Git server to turn on sync.", true);
+        return;
+      }
+    } catch (error) { showSyncStatus(error.message, true); return; }
     syncAction({
       type: "sync:configure",
       address,
-      token: elements.syncToken.value
-    }, "My Vocabulary synced with GitHub.");
+      token: elements.syncToken.value,
+      username: elements.syncUsername.value,
+      branch: elements.syncBranch.value
+    }, "My Vocabulary synced with your Git repository.");
   });
   elements.syncNow.addEventListener("click", () => {
-    syncAction({ type: "sync:now" }, "My Vocabulary synced with GitHub.");
+    syncAction({ type: "sync:now" }, "My Vocabulary synced with your Git repository.");
   });
   elements.syncDisable.addEventListener("click", () => {
-    syncAction({ type: "sync:disable" }, "GitHub sync turned off. Your words are still here.");
+    syncAction({ type: "sync:disable" }, "Sync turned off. Your words are still here.");
   });
 
   chrome.storage.onChanged.addListener((changes, areaName) => {

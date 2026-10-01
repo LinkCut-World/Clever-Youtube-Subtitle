@@ -34,10 +34,10 @@ main { padding-block: 28px 56px; }
 h2 { margin: 0; font-size: 18px; }
 .section-help { margin: 8px 0 20px; color: #6b7890; font-size: 12px; line-height: 1.6; }
 .field-label { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 700; }
-input[type="file"], input[type="search"], input[type="url"], input[type="password"], textarea { width: 100%; }
+input[type="file"], input[type="search"], input[type="url"], input[type="text"], input[type="password"], textarea { width: 100%; }
 input[type="file"] { font-size: 12px; }
 input[type="file"]::file-selector-button { margin-right: 10px; padding: 8px 12px; border: 1px solid #c9d3e6; border-radius: 8px; background: #fff; color: #263957; cursor: pointer; }
-input[type="search"], input[type="url"], input[type="password"], textarea { padding: 10px 12px; border: 1px solid #cbd5e5; border-radius: 9px; background: #fff; color: #1a2540; font-size: 13px; }
+input[type="search"], input[type="url"], input[type="text"], input[type="password"], textarea { padding: 10px 12px; border: 1px solid #cbd5e5; border-radius: 9px; background: #fff; color: #1a2540; font-size: 13px; }
 textarea { min-height: 134px; resize: vertical; line-height: 1.5; }
 .preview { min-height: 18px; margin: 10px 0 20px; color: #68768d; font-size: 12px; overflow-wrap: anywhere; }
 .import-mode { display: flex; flex-wrap: wrap; gap: 12px 20px; padding: 0; margin: 0 0 20px; border: 0; }

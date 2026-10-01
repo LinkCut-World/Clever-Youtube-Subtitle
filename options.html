@@ -24,7 +24,7 @@
           <span class="overview-label">Words saved</span>
           <strong id="word-count">0</strong>
         </div>
-        <p>Your words stay in this browser unless you turn on GitHub sync below.</p>
+        <p>Your words stay in this browser unless you turn on sync below.</p>
       </section>
 
       <p id="message" class="message" role="status" aria-live="polite"></p>
@@ -55,12 +55,16 @@
 
       <section class="card sync-card" aria-labelledby="sync-heading">
         <h2 id="sync-heading">Sync between devices</h2>
-        <p class="section-help">Use the same private GitHub repository on each device. Keep it separate from the extension's code repository.</p>
-        <label class="field-label" for="sync-repository">GitHub repository URL</label>
-        <input id="sync-repository" type="url" spellcheck="false" autocomplete="off" placeholder="https://github.com/name/my-vocabulary">
-        <p class="sync-help">You can paste an HTTPS URL that includes an access token. After saving, the token is hidden from this page.</p>
-        <label class="field-label" for="sync-token">Access token (if it is not in the URL)</label>
+        <p class="section-help">Use the same private Git repository on each device. It can be on your own Git server. Keep it separate from the extension's code repository.</p>
+        <label class="field-label" for="sync-repository">Git clone URL</label>
+        <input id="sync-repository" type="url" spellcheck="false" autocomplete="off" placeholder="https://git.example.com/name/my-vocabulary.git">
+        <p class="sync-help">You can paste an HTTPS URL with a user name and token. After saving, the login details are hidden from this page.</p>
+        <label class="field-label" for="sync-username">User name (if it is not in the URL)</label>
+        <input id="sync-username" type="text" spellcheck="false" autocomplete="off" placeholder="Leave empty to keep the saved login">
+        <label class="field-label" for="sync-token">Access token or password (if it is not in the URL)</label>
         <input id="sync-token" type="password" autocomplete="off" placeholder="Leave empty to keep the saved token">
+        <label class="field-label" for="sync-branch">Branch (optional)</label>
+        <input id="sync-branch" type="text" spellcheck="false" autocomplete="off" placeholder="Use the repository's default branch">
         <div class="sync-actions">
           <button id="sync-connect" class="primary" type="button">Save and sync</button>
           <button id="sync-now" class="secondary" type="button">Sync now</button>
@@ -96,6 +100,9 @@
 
     <script src="word-utils.js"></script>
     <script src="vocabulary.js"></script>
+    <script src="sync-model.js"></script>
+    <script src="sync-codec.js"></script>
+    <script src="sync-git.js"></script>
     <script src="options.js"></script>
   </body>
 </html>

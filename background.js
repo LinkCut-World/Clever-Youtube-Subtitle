@@ -1,9 +1,9 @@
 "use strict";
 
-importScripts("word-utils.js", "sync-model.js", "sync-github.js");
+importScripts("word-utils.js", "sync-model.js", "sync-codec.js", "git-bundle.js", "sync-git.js");
 
 const model = globalThis.CleverSubtitleSyncModel;
-const github = globalThis.CleverSubtitleGithubSync;
+const remote = globalThis.CleverSubtitleGitSync;
 const PERIODIC_ALARM = "clever-subtitle-sync-periodic";
 const SOON_ALARM = "clever-subtitle-sync-soon";
 let queue = Promise.resolve();
@@ -26,6 +26,13 @@ async function localData() {
     "knownWords", "syncState", "syncDeviceId", "syncClock", "syncConfig",
     "syncLastSuccess", "syncLastError"
   ]);
+  if (data.syncConfig?.repository && !data.syncConfig.url) {
+    data.syncConfig = {
+      url: `https://github.com/${data.syncConfig.repository}.git`,
+      username: data.syncConfig.token, password: "", branch: ""
+    };
+    await chrome.storage.local.set({ syncConfig: data.syncConfig });
+  }
   if (!data.syncState) {
     data.syncState = model.emptyState(data.knownWords);
     data.syncDeviceId ||= newDeviceId();
@@ -75,13 +82,16 @@ async function fetchWithTimeout(url, options) {
 
 async function performSync() {
   const data = await serial(localData);
-  if (!data.syncConfig) throw new Error("Set up GitHub sync first.");
+  if (!data.syncConfig) throw new Error("Set up Git sync first.");
   try {
-    const remoteState = await github.syncWithGithub(fetchWithTimeout, data.syncConfig, data.syncState);
+    const origin = remote.parseRepositoryAddress(data.syncConfig.url).origin;
+    if (!await chrome.permissions.contains({ origins: [origin] })) {
+      throw new Error("Open My Vocabulary and save the sync settings to allow this Git server.");
+    }
+    const remoteState = await remote.syncWithGit(fetchWithTimeout, data.syncConfig, data.syncState);
     return await serial(async () => {
       const latest = await localData();
-      if (latest.syncConfig?.repository !== data.syncConfig.repository ||
-          latest.syncConfig?.token !== data.syncConfig.token) {
+      if (!sameConfig(latest.syncConfig, data.syncConfig)) {
         return { words: model.effectiveWords(latest.syncState) };
       }
       const state = model.mergeStates(latest.syncState, remoteState);
@@ -101,13 +111,17 @@ async function performSync() {
   } catch (error) {
     await serial(async () => {
       const latest = await localData();
-      if (latest.syncConfig?.repository === data.syncConfig.repository &&
-          latest.syncConfig?.token === data.syncConfig.token) {
+      if (sameConfig(latest.syncConfig, data.syncConfig)) {
         await chrome.storage.local.set({ syncLastError: error.message });
       }
     });
     throw error;
   }
+}
+
+function sameConfig(left, right) {
+  return left && right && ["url", "username", "password", "branch"]
+    .every((key) => left[key] === right[key]);
 }
 
 function syncNow() {
@@ -116,18 +130,31 @@ function syncNow() {
   return syncPromise;
 }
 
-async function configure(address, explicitToken) {
+async function configure(address, explicitToken, explicitUsername, branch) {
   await serial(async () => {
-    const parsed = github.parseRepositoryAddress(address);
-    if (parsed.repository.toLowerCase() === "linkcut-world/clever-youtube-subtitle") {
+    const parsed = remote.parseRepositoryAddress(address);
+    if (parsed.url.toLowerCase().replace(/\.git$/, "") === "https://github.com/linkcut-world/clever-youtube-subtitle") {
       throw new Error("Use a separate private repository for your words.");
     }
     const data = await localData();
-    const token = String(explicitToken || parsed.token ||
-      (data.syncConfig?.repository === parsed.repository ? data.syncConfig.token : "")).trim();
-    if (!token) throw new Error("Add an access token to the URL or token field.");
+    const previous = data.syncConfig?.url === parsed.url ? data.syncConfig : null;
+    let username;
+    let password;
+    if (explicitToken) {
+      username = String(explicitUsername || parsed.username || previous?.username || "git").trim();
+      password = String(explicitToken);
+    } else if (parsed.username || parsed.password) {
+      username = String(explicitUsername || parsed.username).trim();
+      password = parsed.password;
+    } else {
+      username = String(explicitUsername || previous?.username || "").trim();
+      password = previous?.password || "";
+    }
+    if (!await chrome.permissions.contains({ origins: [parsed.origin] })) {
+      throw new Error("Allow access to this Git server before saving sync settings.");
+    }
     await chrome.storage.local.set({
-      syncConfig: { repository: parsed.repository, token },
+      syncConfig: { url: parsed.url, username, password, branch: remote.validateBranch(branch) },
       syncLastError: ""
     });
   });
@@ -138,7 +165,8 @@ async function configure(address, explicitToken) {
 async function status() {
   const data = await localData();
   return {
-    repository: data.syncConfig?.repository || "",
+    repositoryUrl: data.syncConfig?.url || "",
+    branch: data.syncConfig?.branch || "",
     connected: Boolean(data.syncConfig),
     lastSuccess: data.syncLastSuccess || "",
     lastError: data.syncLastError || ""
@@ -150,7 +178,7 @@ chrome.runtime.onMessage.addListener((message, _sender, respond) => {
     "vocab:get": () => serial(() => localData().then((data) => ({ words: model.effectiveWords(data.syncState) }))),
     "vocab:mutate": () => serial(() => mutate(message.mutation)),
     "sync:status": () => serial(status),
-    "sync:configure": () => configure(message.address, message.token),
+    "sync:configure": () => configure(message.address, message.token, message.username, message.branch),
     "sync:now": syncNow,
     "sync:disable": () => serial(async () => {
       await chrome.storage.local.set({ syncConfig: null, syncLastError: "" });

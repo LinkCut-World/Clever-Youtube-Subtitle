@@ -24,21 +24,23 @@ Changes to My Vocabulary update the open caption right away. Turning off YouTube
 
 ## Sync between devices
 
-Create a **separate private GitHub repository** for your vocabulary. Do not use the Clever Youtube Subtitle code repository: its history may become public later.
+Create a **separate private Git repository** for your vocabulary. It can be on GitHub, GitLab, Gitea, Forgejo, or your own Git server. The server must support Git Smart HTTP for reading and pushing over HTTP or HTTPS. Do not use the Clever Youtube Subtitle code repository: its history may become public later.
 
-1. Give a fine-grained GitHub access token permission to read and write **Contents** of only that private vocabulary repository.
-2. In **My Vocabulary**, under **Sync between devices**, paste the repository's HTTPS URL. You can include the token in the URL, such as `https://USERNAME:TOKEN@github.com/USERNAME/my-vocabulary.git`, or enter it in the separate token field. Use your real values only in the extension; never add the token to this code repository.
-3. Click **Save and sync**. Repeat on your other device with the same repository and its own token. The page shows the repository address without the token after you save it.
+1. Prepare a user name and token or password that can read and push to only that vocabulary repository. The credentials must work for Git over HTTP, not just for the website's API.
+2. In **My Vocabulary**, under **Sync between devices**, paste the repository's **HTTPS clone URL**. You can include login details, such as `https://USERNAME:TOKEN@git.example.com/USERNAME/my-vocabulary.git`, or enter them in the separate fields. Use your real values only in the extension; never add the token to this code repository. Leave **Branch** empty to use the default branch. An empty repository starts with `main` unless you enter another branch.
+3. Click **Save and sync** and allow the extension to connect to that server when the browser asks. Repeat on your other device with the same repository and branch. The page shows the repository address without login details after you save it.
 
 The extension saves changes locally first, then syncs in the background after about 30 seconds and checks for changes every five minutes. **Sync now** checks immediately. If you are offline, your words stay on your device and sync when it can connect again. Turning off sync keeps your local words and removes the saved connection token. When two devices connect for the first time, their existing words are combined. To replace the shared vocabulary, connect and sync first, then use **Replace My Vocabulary**.
 
-Changes to different words are kept. If two devices change the same word, the action with the later recorded time wins; equal times use a stable device ID. GitHub write conflicts are retried automatically. Device clocks that are wrong can affect the order of offline changes. The private repository stores a compressed vocabulary file, including removal records so older device copies cannot restore deleted words.
+Changes to different words are kept. If two devices change the same word, the action with the later recorded time wins; equal times use a stable device ID. If another device pushes first, the extension reads the new version, merges words, and retries. It never force-pushes. Device clocks that are wrong can affect the order of offline changes. The repository stores `clever-subtitle-vocabulary.json.gz`, including removal records so older device copies cannot restore deleted words.
+
+The bundled Git client runs inside the extension and connects directly to your server, without a proxy or a local service. Your local vocabulary remains in extension storage; a temporary Git checkout is recreated for each sync. SSH URLs and browser-only login pages are not supported. Use the final clone URL rather than a redirect. If you used GitHub sync in version 1.8.0, save its settings once after updating to allow access to `github.com`; the vocabulary file format is unchanged.
 
 ## Move your words with a file
 
 Open **My Vocabulary** on your first browser and click **Export TXT**. Move the saved TXT file to your other device. In the other browser, open **My Vocabulary**, choose that file, select **Replace My Vocabulary**, and click **Import words**. Use **Add to My Vocabulary** instead if you want to keep words already saved on the other device.
 
-This is a manual transfer. Keep the exported TXT file as a backup, even if you use GitHub sync.
+This is a manual transfer. Keep the exported TXT file as a backup, even if you use Git sync.
 
 ### Kiwi Browser on Android
 
@@ -56,12 +58,12 @@ The bundled [wink-nlp](https://github.com/winkjs/wink-nlp) model runs in your br
 
 ## Privacy
 
-My Vocabulary is saved in local extension storage. GitHub sync is optional. When you turn it on, the extension sends your vocabulary and change records to the private repository you choose through GitHub's API. The access token is saved only in that browser's extension storage, not in the source code or installation ZIP. It works on YouTube pages and reads YouTube's own captions. If another extension adds captions on top of the video, turn off that other caption layer to see only the filtered YouTube captions.
+My Vocabulary is saved in local extension storage. Git sync is optional. When you turn it on, the extension sends your vocabulary and change records to the Git repository you choose. Login details are saved only in that browser's extension storage, not in the source code or installation ZIP. Server access is requested for the host you enter. The extension cannot check repository visibility for every Git server, so choose a private repository. It works on YouTube pages and reads YouTube's own captions. If another extension adds captions on top of the video, turn off that other caption layer to see only the filtered YouTube captions.
 
 ## Build and test
 
-Run `npm ci` and `npm test` for local tests. Run `npm run build` only if you change `lemma-entry.js` or the word-model packages. Commit the new `lemma-bundle.js` after rebuilding so the Chrome extension remains ready to install.
+Run `npm ci` and `npm test` for local tests. Git must be installed to run the sync integration tests, which use a temporary local Git HTTP server. Run `npm run build` if you change `lemma-entry.js` or the word-model packages. Run `npm run build:git` if you change `git-entry.js` or its packages. Commit the generated bundles and license notices so the extension remains ready to install.
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE). The bundled word-model packages have their own MIT notices in [THIRD_PARTY_LICENSES.txt](THIRD_PARTY_LICENSES.txt).
+This project is licensed under the [MIT License](LICENSE). The bundled word-model packages have their own MIT notices in [THIRD_PARTY_LICENSES.txt](THIRD_PARTY_LICENSES.txt). Git client and filesystem dependency notices are included in [GIT_THIRD_PARTY_LICENSES.txt](GIT_THIRD_PARTY_LICENSES.txt).

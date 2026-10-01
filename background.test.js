@@ -3,35 +3,19 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
 const { webcrypto } = require("node:crypto");
-const github = require("./sync-github.js");
+const model = require("./sync-model.js");
 
-test("background migrates saved words, records edits, and syncs with a tokenized URL", async () => {
+test("background records edits and keeps local edits responsive during Git sync", async () => {
   const data = { knownWords: ["like"] };
   let listener;
-  let remote = null;
+  let remoteState = model.emptyState();
   let holdNextRead = null;
   const context = {
     URL, Blob, Response, AbortController, CompressionStream, DecompressionStream,
     TextEncoder, TextDecoder, Uint8Array, btoa, atob, setTimeout, clearTimeout, crypto: webcrypto,
-    fetch: async (url, request) => {
-      assert.equal(request.headers.Authorization, "Bearer secret");
-      if (!url.includes("/contents/")) return { ok: true, json: async () => ({ private: true }) };
-      if (request.method === "GET") {
-        if (holdNextRead) {
-          const gate = holdNextRead;
-          holdNextRead = null;
-          gate.entered();
-          await gate.wait;
-        }
-        return remote
-          ? { ok: true, json: async () => ({ content: remote, sha: "current" }) }
-          : { ok: false, status: 404 };
-      }
-      remote = JSON.parse(request.body).content;
-      return { ok: true, json: async () => ({}) };
-    },
     chrome: {
       runtime: { onMessage: { addListener(callback) { listener = callback; } } },
+      permissions: { contains: async () => true },
       storage: {
         local: {
           async get(keys) {
@@ -42,13 +26,30 @@ test("background migrates saved words, records edits, and syncs with a tokenized
         }
       },
       alarms: {
-        get(_name, callback) { callback(null); },
-        create() {},
+        get(_name, callback) { callback(null); }, create() {},
         onAlarm: { addListener() {} }
       }
     },
     importScripts(...paths) {
-      for (const path of paths) vm.runInContext(fs.readFileSync(path, "utf8"), context);
+      for (const path of paths) {
+        if (path === "git-bundle.js") continue;
+        vm.runInContext(fs.readFileSync(path, "utf8"), context);
+        if (path === "sync-git.js") {
+          context.CleverSubtitleGitSync.syncWithGit = async (_fetch, config, state) => {
+            assert.equal(config.url, "https://git.internal.example/Name/words.git");
+            assert.equal(config.username, "user");
+            assert.equal(config.password, "secret");
+            if (holdNextRead) {
+              const gate = holdNextRead;
+              holdNextRead = null;
+              gate.entered();
+              await gate.wait;
+            }
+            remoteState = model.mergeStates(remoteState, state);
+            return remoteState;
+          };
+        }
+      }
     }
   };
   context.globalThis = context;
@@ -65,13 +66,12 @@ test("background migrates saved words, records edits, and syncs with a tokenized
   assert.equal(data.syncState.actions.like[0], 0);
   assert.equal((await send({ type: "vocab:mutate", mutation: { add: ["apple"] } })).ok, true);
   const connected = await send({
-    type: "sync:configure", address: "https://user:secret@github.com/Name/words.git", token: ""
+    type: "sync:configure", address: "https://user:secret@git.internal.example/Name/words.git"
   });
   assert.equal(connected.ok, true, connected.error);
   assert.deepEqual(Array.from(connected.words), ["apple"]);
-  assert.equal((await send({ type: "sync:status" })).repository, "Name/words");
-  assert.equal(data.syncConfig.repository, "Name/words");
-  assert.equal((await github.decodeContent(remote)).actions.like[0], 0);
+  assert.equal((await send({ type: "sync:status" })).repositoryUrl, "https://git.internal.example/Name/words.git");
+  assert.equal(remoteState.actions.like[0], 0);
 
   let entered;
   let release;
@@ -82,15 +82,23 @@ test("background migrates saved words, records edits, and syncs with a tokenized
   await enteredPromise;
   const localEdit = send({ type: "vocab:mutate", mutation: { add: ["listen"] } });
   assert.equal((await Promise.race([localEdit, new Promise((resolve) => setTimeout(() => resolve({ ok: false }), 100))])).ok, true,
-    "Local word edits should not wait for the GitHub network request");
+    "Local word edits should not wait for the Git network request");
   release();
   assert.equal((await pendingSync).ok, true);
   assert.deepEqual(Array.from(data.knownWords), ["apple", "listen"]);
   assert.equal((await send({ type: "sync:now" })).ok, true);
-  assert.deepEqual(Array.from((await github.decodeContent(remote)).seed), ["like"]);
-  assert.equal((await github.decodeContent(remote)).actions.listen[0], 1);
-
+  assert.equal(remoteState.actions.listen[0], 1);
   assert.equal((await send({ type: "sync:disable" })).connected, false);
   assert.equal(data.syncConfig, null);
+  assert.deepEqual(Array.from(data.knownWords), ["apple", "listen"]);
+
+  data.syncConfig = { repository: "Name/words", token: "legacy-secret" };
+  const migrated = await send({ type: "sync:status" });
+  assert.equal(migrated.repositoryUrl, "https://github.com/Name/words.git");
+  assert.equal(JSON.stringify(migrated).includes("legacy-secret"), false);
+  context.chrome.permissions.contains = async () => false;
+  const denied = await send({ type: "sync:now" });
+  assert.equal(denied.ok, false);
+  assert.match(denied.error, /allow this Git server/);
   assert.deepEqual(Array.from(data.knownWords), ["apple", "listen"]);
 });

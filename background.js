@@ -193,9 +193,22 @@ chrome.runtime.onMessage.addListener((message, _sender, respond) => {
   return true;
 });
 
-chrome.alarms.get(PERIODIC_ALARM, (alarm) => {
-  if (!alarm) chrome.alarms.create(PERIODIC_ALARM, { periodInMinutes: 5 });
-});
+async function ensurePeriodicAlarm() {
+  const alarm = await chrome.alarms.get(PERIODIC_ALARM);
+  if (!alarm) await chrome.alarms.create(PERIODIC_ALARM, { periodInMinutes: 5 });
+}
+
+async function resumeSync() {
+  await ensurePeriodicAlarm();
+  const data = await serial(localData);
+  if (data.syncConfig) await syncNow();
+}
+
+// The browser may discard alarms on exit or extension update. These listeners
+// wake this worker even when the user has not opened an extension page.
+chrome.runtime.onStartup.addListener(() => resumeSync().catch(() => {}));
+chrome.runtime.onInstalled.addListener(() => resumeSync().catch(() => {}));
+ensurePeriodicAlarm().catch(() => {});
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === PERIODIC_ALARM || alarm.name === SOON_ALARM) {
     syncNow().catch(() => {});

@@ -14,7 +14,11 @@ test("background records edits and keeps local edits responsive during Git sync"
     URL, Blob, Response, AbortController, CompressionStream, DecompressionStream,
     TextEncoder, TextDecoder, Uint8Array, btoa, atob, setTimeout, clearTimeout, crypto: webcrypto,
     chrome: {
-      runtime: { onMessage: { addListener(callback) { listener = callback; } } },
+      runtime: {
+        onMessage: { addListener(callback) { listener = callback; } },
+        onStartup: { addListener() {} },
+        onInstalled: { addListener() {} }
+      },
       permissions: { contains: async () => true },
       storage: {
         local: {
@@ -26,7 +30,7 @@ test("background records edits and keeps local edits responsive during Git sync"
         }
       },
       alarms: {
-        get(_name, callback) { callback(null); }, create() {},
+        get: async () => null, create() {},
         onAlarm: { addListener() {} }
       }
     },
@@ -101,4 +105,78 @@ test("background records edits and keeps local edits responsive during Git sync"
   assert.equal(denied.ok, false);
   assert.match(denied.error, /allow this Git server/);
   assert.deepEqual(Array.from(data.knownWords), ["apple", "listen"]);
+});
+
+test("browser startup restores lost alarms and syncs saved words without opening the UI", async () => {
+  const initial = model.applyMutation(model.emptyState(["like"]), { add: ["listen"] }, "device-a", 0, 100);
+  const data = {
+    knownWords: initial.words, syncState: initial.state, syncClock: initial.clock,
+    syncConfig: { url: "https://git.internal.example/words.git", username: "user", password: "secret", branch: "" }
+  };
+  const alarms = new Map();
+  let creations = 0;
+  let syncs = 0;
+  async function bootWorker() {
+    const events = {};
+    const context = {
+      URL, Uint8Array, crypto: webcrypto,
+      chrome: {
+        runtime: {
+          onMessage: { addListener() {} },
+          onStartup: { addListener(callback) { events.startup = callback; } },
+          onInstalled: { addListener(callback) { events.installed = callback; } }
+        },
+        permissions: { contains: async () => true },
+        storage: {
+          local: {
+            async get(keys) {
+              return Object.fromEntries(keys.filter((key) => Object.hasOwn(data, key))
+                .map((key) => [key, data[key]]));
+            },
+            async set(changes) { Object.assign(data, changes); }
+          }
+        },
+        alarms: {
+          get: async (name) => alarms.get(name),
+          async create(name, info) { creations++; alarms.set(name, info); },
+          onAlarm: { addListener() {} }
+        }
+      },
+      importScripts(...paths) {
+        for (const path of paths) {
+          if (path === "git-bundle.js") continue;
+          vm.runInContext(fs.readFileSync(path, "utf8"), context);
+          if (path === "sync-git.js") {
+            context.CleverSubtitleGitSync.syncWithGit = async (_fetch, _config, state) => {
+              syncs++;
+              assert.equal(state.actions.listen[1], initial.state.actions.listen[1]);
+              return state;
+            };
+          }
+        }
+      }
+    };
+    context.globalThis = context;
+    vm.createContext(context);
+    vm.runInContext(fs.readFileSync("background.js", "utf8"), context);
+    await new Promise(setImmediate);
+    return events;
+  }
+
+  const first = await bootWorker();
+  await first.startup();
+  assert.equal(syncs, 1);
+  alarms.clear(); // Simulate a browser that did not retain its alarms on exit.
+  const restarted = await bootWorker();
+  await restarted.startup();
+  assert.equal(syncs, 2);
+  assert.equal(alarms.get("clever-subtitle-sync-periodic").periodInMinutes, 5);
+  assert.equal(creations, 2);
+  await restarted.installed();
+  assert.equal(syncs, 3);
+  assert.equal(creations, 2, "An existing periodic timer should keep its schedule");
+  data.syncConfig = null;
+  await restarted.startup();
+  assert.equal(syncs, 3, "Startup must not connect after sync has been turned off");
+  assert.deepEqual(Array.from(data.knownWords), ["like", "listen"]);
 });

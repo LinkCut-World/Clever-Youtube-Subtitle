@@ -28,6 +28,7 @@ class FakeElement {
     this.dataset = {};
     this.style = {};
     this.listeners = {};
+    this.scrollTop = 0;
     this.textContent = text;
   }
 
@@ -99,7 +100,15 @@ class FakeElement {
   setAttribute(name, value) { this[name] = value; }
   getAttribute(name) { return this[name] ?? null; }
   focus() { this.focused = true; }
-  getBoundingClientRect() { return { left: 100, top: 200, right: 150, bottom: 220, width: 50, height: 20 }; }
+  getBoundingClientRect() {
+    const layouts = {
+      "clever-subtitle-review-toggle": { left: 20, top: 20, right: 180, bottom: 64, width: 160, height: 44 },
+      "clever-subtitle-review-close": { left: 36, top: 320, right: 206, bottom: 364, width: 170, height: 44 },
+      "clever-subtitle-review-panel": { left: 20, top: 72, right: 560, bottom: 380, width: 540, height: 308 },
+      "clever-subtitle-review-caption": { left: 36, top: 88, right: 540, bottom: 288, width: 504, height: 200 }
+    };
+    return layouts[this.className] || { left: 100, top: 200, right: 150, bottom: 220, width: 50, height: 20 };
+  }
   getClientRects() { return []; }
   get offsetWidth() { return 28; }
   get offsetHeight() { return 28; }
@@ -460,6 +469,123 @@ function createPlayer({ paused = false, knownWords = [] } = {}) {
     click: (element) => element.listeners.click({ preventDefault() {}, stopPropagation() {} })
   };
 }
+
+function emitTouch(app, type, target, x, y) {
+  const result = { prevented: false, blocked: false };
+  app.windowListeners[type]({
+    pointerType: "touch", target, clientX: x, clientY: y,
+    changedTouches: [{ clientX: x, clientY: y }],
+    preventDefault() { result.prevented = true; },
+    stopImmediatePropagation() { result.blocked = true; }
+  });
+  return result;
+}
+
+test("covered review buttons open and close once across touch and pointer events", () => {
+  for (const paths of [["pointer"], ["touch"], ["pointer", "touch"]]) {
+    const app = createPlayer();
+    app.setCaption("First sentence");
+    app.setCaption("Second sentence");
+    const panel = app.find(".clever-subtitle-review-panel");
+    const toggle = app.find(".clever-subtitle-review-toggle");
+    const close = app.find(".clever-subtitle-review-close");
+    for (const prefix of paths) {
+      const type = prefix === "pointer" ? "pointerdown" : "touchstart";
+      assert.equal(emitTouch(app, type, app.player, 60, 40).blocked, true);
+    }
+    assert.equal(panel.hidden, true, "A review button acts on release");
+    for (const prefix of paths) {
+      assert.equal(emitTouch(app, prefix === "pointer" ? "pointerup" : "touchend", app.player, 60, 40).blocked, true);
+    }
+    assert.equal(panel.hidden, false);
+    assert.equal(app.video.pauseCalls, 1);
+    assert.equal(app.find(".clever-subtitle-review-caption").textContent, "First sentence");
+    assert.equal(emitTouch(app, "click", toggle, 60, 40).blocked, true,
+      "A synthetic click must not immediately close the review again");
+    assert.equal(panel.hidden, false);
+
+    for (const prefix of paths) emitTouch(app, prefix === "pointer" ? "pointerdown" : "touchstart", app.player, 60, 340);
+    for (const prefix of paths) emitTouch(app, prefix === "pointer" ? "pointerup" : "touchend", app.player, 60, 340);
+    assert.equal(panel.hidden, true);
+    assert.equal(app.video.playCalls, 1);
+    assert.equal(emitTouch(app, "click", close, 60, 340).blocked, true);
+    assert.equal(app.video.playCalls, 1);
+  }
+});
+
+test("direct review taps toggle safely and preserve an existing pause", () => {
+  const app = createPlayer({ paused: true });
+  app.setCaption("First sentence");
+  app.setCaption("Second sentence");
+  const toggle = app.find(".clever-subtitle-review-toggle");
+  const panel = app.find(".clever-subtitle-review-panel");
+  for (const expectedHidden of [false, true]) {
+    assert.equal(emitTouch(app, "pointerdown", toggle, 60, 40).blocked, true);
+    emitTouch(app, "pointerup", toggle, 60, 40);
+    assert.equal(panel.hidden, expectedHidden);
+    emitTouch(app, "click", toggle, 60, 40);
+    assert.equal(panel.hidden, expectedHidden);
+  }
+  assert.equal(app.video.paused, true);
+  assert.equal(app.video.playCalls, 0);
+});
+
+test("dragged or cancelled review taps do not activate, and hidden review controls do not intercept", () => {
+  const app = createPlayer();
+  app.setCaption("First sentence");
+  app.setCaption("Second sentence");
+  const panel = app.find(".clever-subtitle-review-panel");
+  emitTouch(app, "pointerdown", app.player, 60, 40);
+  emitTouch(app, "pointermove", app.player, 300, 40);
+  emitTouch(app, "pointerup", app.player, 300, 40);
+  assert.equal(emitTouch(app, "click", app.player, 300, 40).blocked, true);
+  assert.equal(panel.hidden, true);
+  emitTouch(app, "touchstart", app.player, 60, 40);
+  emitTouch(app, "touchcancel", app.player, 60, 40);
+  emitTouch(app, "touchend", app.player, 60, 40);
+  assert.equal(panel.hidden, true);
+  assert.equal(app.video.pauseCalls, 0);
+  app.cc.setAttribute("aria-pressed", "false");
+  app.mutate(app.cc);
+  assert.equal(emitTouch(app, "pointerdown", app.player, 60, 40).blocked, false);
+});
+
+test("covered review panel selects its words, clips hidden text, and scrolls without controlling YouTube", () => {
+  const app = createPlayer();
+  app.setCaption("A curious word");
+  const [current] = app.setCaption("Current caption");
+  app.click(app.find(".clever-subtitle-review-toggle"));
+  const caption = app.find(".clever-subtitle-review-caption");
+  const reviewedWord = caption.querySelectorAll(".clever-subtitle-unknown")[1];
+  const currentWord = current.querySelectorAll(".clever-subtitle-unknown")[0];
+  const rect = { left: 100, top: 200, right: 150, bottom: 220, width: 50, height: 20 };
+  reviewedWord.getClientRects = currentWord.getClientRects = () => [rect];
+  emitTouch(app, "pointerdown", app.player, 125, 210);
+  assert.equal(reviewedWord.classList.contains("clever-subtitle-active"), true);
+  assert.equal(currentWord.classList.contains("clever-subtitle-active"), false);
+  emitTouch(app, "pointerup", app.player, 125, 210);
+
+  reviewedWord.getClientRects = () => [{ ...rect, top: 300, bottom: 310 }];
+  emitTouch(app, "touchstart", app.player, 125, 305);
+  assert.equal(app.find(".clever-subtitle-word-button").hidden, true);
+  emitTouch(app, "touchend", app.player, 125, 305);
+
+  assert.equal(emitTouch(app, "pointerdown", app.player, 400, 150).prevented, true);
+  emitTouch(app, "pointermove", app.player, 400, 100);
+  emitTouch(app, "touchmove", app.player, 400, 100);
+  assert.equal(caption.scrollTop, 50, "The two event paths must not double-scroll");
+  emitTouch(app, "pointerup", app.player, 400, 100);
+  assert.equal(emitTouch(app, "touchstart", caption, 400, 150).prevented, false,
+    "A panel that receives the event directly should retain native scrolling");
+  assert.equal(emitTouch(app, "touchmove", caption, 400, 100).prevented, false);
+  emitTouch(app, "touchend", caption, 400, 100);
+  assert.equal(app.find(".clever-subtitle-review-panel").hidden, false);
+  assert.equal(app.video.paused, true);
+  assert.equal(app.video.playCalls, 0);
+  app.click(app.find(".clever-subtitle-review-close"));
+  app.click(app.find(".clever-subtitle-review-toggle"));
+  assert.equal(caption.scrollTop, 0, "Opening review should start at the top of its text");
+});
 
 test("touching a current caption word pauses playback for both touch event paths", () => {
   for (const knownWords of [[], ["like"]]) {

@@ -103,6 +103,7 @@
     reviewedCaption = previousCaption;
     reviewRevision = -1;
     reviewCaption.textContent = reviewedCaption.text;
+    reviewCaption.scrollTop = 0;
     resumeVideo = !trackedVideo.paused && !trackedVideo.ended ? trackedVideo : null;
     trackedVideo.pause();
     reviewClose.textContent = resumeVideo ? "Continue playback" : "Close";
@@ -410,7 +411,11 @@
 
     let selected = null;
     let bestDistance = Infinity;
+    const insideReview = reviewedCaption && pointInside(reviewPanel, x, y);
     for (const element of document.querySelectorAll(WORD_SELECTOR)) {
+      const reviewWord = reviewCaption?.contains(element);
+      if (reviewWord && (!reviewedCaption || !pointInside(reviewCaption, x, y))) continue;
+      if (insideReview && !reviewWord) continue;
       for (const rect of element.getClientRects()) {
         if (rect.width <= 0 || rect.height <= 0) continue;
         const dx = Math.max(rect.left - x, 0, x - rect.right);
@@ -426,14 +431,54 @@
     return selected;
   }
 
+  function pointInside(element, x, y) {
+    if (!element || element.hidden || !Number.isFinite(x) || !Number.isFinite(y)) return false;
+    const rect = element.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 &&
+      x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+  }
+
+  function reviewControlAtPoint(target, x, y) {
+    if (!review || review.hidden) return null;
+    for (const [element, control] of [[reviewToggle, "toggle"], [reviewClose, "close"]]) {
+      if (control === "close" && !reviewedCaption) continue;
+      if (element.contains(target) || pointInside(element, x, y)) return { element, control };
+    }
+    return null;
+  }
+
+  function blockReviewTouch(event, touch) {
+    // Let a directly targeted review panel keep its native scroll gesture.
+    if (touch.control !== "panel" || touch.covered) event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+
   function handleTouchStart(event, x, y) {
     if (event.target === wordButton) return;
+    if (blockedTouch?.control && !blockedTouch.released && isBlockedTouch(x, y)) {
+      blockReviewTouch(event, blockedTouch);
+      return;
+    }
+    const control = reviewControlAtPoint(event.target, x, y);
+    if (control) {
+      blockedTouch = { ...control, x, y, until: Date.now() + 900, released: false, cancelled: false };
+      hideWordButton();
+      blockReviewTouch(event, blockedTouch);
+      return;
+    }
+    const element = wordAtPoint(event.target, x, y);
+    if (!element && reviewedCaption && (reviewPanel.contains(event.target) || pointInside(reviewPanel, x, y))) {
+      blockedTouch = { control: "panel", element: reviewPanel, x, y, lastY: y,
+        covered: !reviewPanel.contains(event.target), until: Date.now() + 900, released: false };
+      hideWordButton();
+      blockReviewTouch(event, blockedTouch);
+      return;
+    }
     if (review?.contains(event.target) && !event.target.closest?.(WORD_SELECTOR)) {
       blockedTouch = null;
       hideWordButton();
       return;
     }
-    const element = wordAtPoint(event.target, x, y);
     if (!element) {
       blockedTouch = null;
       hideWordButton();
@@ -449,7 +494,48 @@
 
   function isBlockedTouch(x, y) {
     return blockedTouch && Date.now() <= blockedTouch.until &&
-      Math.abs(x - blockedTouch.x) <= 24 && Math.abs(y - blockedTouch.y) <= 24;
+      Math.abs(x - (blockedTouch.clickX ?? blockedTouch.x)) <= 24 &&
+      Math.abs(y - (blockedTouch.clickY ?? blockedTouch.y)) <= 24;
+  }
+
+  function handleTouchMove(event, x, y) {
+    const touch = blockedTouch;
+    if (!touch?.control || touch.released) return;
+    if (Math.abs(x - touch.x) > 10 || Math.abs(y - touch.y) > 10) touch.cancelled = true;
+    if (touch.control === "panel" && touch.covered && reviewedCaption) {
+      reviewCaption.scrollTop += touch.lastY - y;
+      touch.lastY = y;
+      positionWordButton();
+    }
+    blockReviewTouch(event, touch);
+  }
+
+  function handleTouchEnd(event, x, y) {
+    const touch = blockedTouch;
+    if (!touch) return;
+    if (touch.control) {
+      if (touch.released && !isBlockedTouch(x, y)) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const activate = !touch.released && !touch.cancelled && !review.hidden && pointInside(touch.element, x, y);
+      touch.released = true;
+      touch.clickX = x;
+      touch.clickY = y;
+      touch.until = Date.now() + 900;
+      if (activate && touch.control === "toggle") {
+        if (reviewedCaption) closeReview();
+        else openReview();
+      } else if (activate && touch.control === "close" && reviewedCaption) {
+        closeReview();
+        reviewToggle.focus();
+      }
+      return;
+    }
+    if (isBlockedTouch(x, y)) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      touch.released = true;
+    }
   }
 
   document.addEventListener("mouseover", (event) => {
@@ -473,21 +559,29 @@
   }, { capture: true, passive: false });
 
   window.addEventListener("pointerup", (event) => {
-    if (event.pointerType === "touch" && isBlockedTouch(event.clientX, event.clientY)) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      blockedTouch.released = true;
-    }
+    if (event.pointerType === "touch") handleTouchEnd(event, event.clientX, event.clientY);
   }, true);
 
   window.addEventListener("touchend", (event) => {
     const touch = event.changedTouches[0];
-    if (touch && isBlockedTouch(touch.clientX, touch.clientY)) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      blockedTouch.released = true;
-    }
+    if (touch) handleTouchEnd(event, touch.clientX, touch.clientY);
   }, { capture: true, passive: false });
+
+  window.addEventListener("pointermove", (event) => {
+    if (event.pointerType === "touch") handleTouchMove(event, event.clientX, event.clientY);
+  }, { capture: true, passive: false });
+  window.addEventListener("touchmove", (event) => {
+    const touch = event.changedTouches[0];
+    if (touch) handleTouchMove(event, touch.clientX, touch.clientY);
+  }, { capture: true, passive: false });
+  for (const type of ["pointercancel", "touchcancel"]) {
+    window.addEventListener(type, () => {
+      if (blockedTouch?.control) {
+        blockedTouch.cancelled = true;
+        blockedTouch.released = true;
+      }
+    }, true);
+  }
 
   window.addEventListener("click", (event) => {
     if (event.target === wordButton) {

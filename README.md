@@ -26,6 +26,8 @@ Changes to My Vocabulary update the open caption right away. Turning off YouTube
 
 After captions move on, a small **↶ Previous caption** button appears at the top left of the video. Click it to pause the video and open the previous caption. You can reveal hidden words and use the same **+** and **−** word buttons there, without rewinding or trying to pause at the right moment.
 
+On a touch screen, tap and release **Previous caption** to open it. Drag the text area to scroll a long caption. The review buttons work even when YouTube's player controls cover their touch area.
+
 The previous caption stays open while you update My Vocabulary. Click **Continue playback**, click **Previous caption** again, or press **Esc** when you are ready to continue. If the video was already paused, the closing button says **Close** and keeps it paused.
 
 The extension remembers the last distinct caption it saw on the current video. Line wrapping and words gradually added to a caption do not replace that history. Seeking, changing videos, or turning off CC clears it.

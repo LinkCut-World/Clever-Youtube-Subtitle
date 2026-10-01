@@ -54,6 +54,8 @@ This is a manual transfer. Keep the exported TXT file as a backup, even if you u
 
 Use the **Kiwi ZIP**, which requests Git server access when it is installed. Kiwi may fail to show the later access prompt with the error "Could not find an active window". The default Kiwi ZIP requests HTTP/HTTPS host access so you can use any Git server. The desktop version requests access to each server when you save its settings.
 
+Kiwi may install the ZIP without a separate permission prompt. The extension checks server access when you save the sync settings. To open My Vocabulary, choose **Clever Youtube Subtitle** from Kiwi's menu, then tap **Open My Vocabulary**. The page opens in a normal tab. If Kiwi's **Extension options** link does not open a visible page, use this menu button instead.
+
 Kiwi can install a ZIP of the extension from its extensions page. Open **Extensions**, turn on **Developer mode**, tap **+ (from .zip/.crx/.user.js)**, and choose the Kiwi ZIP. Then open **My Vocabulary** in Kiwi and import the TXT file you moved from your computer.
 
 On a touch screen, tap a caption word to pause the video and select the word. Lift your finger, then tap the **+** or **−** button to change My Vocabulary. The first tap does not change your saved words. The button stays open until you use it, tap outside the word, or resume playback. Updating My Vocabulary keeps the video paused; use YouTube's play button when you are ready to continue. If YouTube captions are not filtered on the mobile site, use Kiwi's **Desktop site** mode for YouTube and turn on CC there.

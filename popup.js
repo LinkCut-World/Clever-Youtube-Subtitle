@@ -15,6 +15,16 @@
   });
 
   document.getElementById("manage-button").addEventListener("click", () => {
-    chrome.runtime.openOptionsPage();
+    const url = chrome.runtime.getURL("options.html");
+    // Open a real tab. Kiwi may create an invisible options iframe when the
+    // browser's embedded-options route is used.
+    chrome.tabs.create({ url, active: true }, () => {
+      if (!chrome.runtime.lastError) return;
+      message.textContent = "Could not open a tab. Use the link below.";
+      message.classList.add("error");
+      const link = document.getElementById("manage-link");
+      link.href = url;
+      link.hidden = false;
+    });
   });
 })();

@@ -25,4 +25,6 @@ button:hover { background: #203ac0; }
 button:disabled { opacity: .55; cursor: wait; }
 .message { min-height: 18px; margin: 9px 0 0; color: #236c44; font-size: 12px; }
 .message.error { color: #b12828; }
+.direct-link { color: #2948dc; font-size: 12px; margin: 8px 0 12px; }
+.direct-link:not([hidden]) { display: block; }
 .footer { padding-top: 14px; margin: 6px 0 0; border-top: 1px solid #e0e5ee; color: #69758c; font-size: 11px; line-height: 1.5; }

@@ -65,17 +65,12 @@
     wordButton.title = "Saving…";
     wordButton.setAttribute("aria-label", "Saving…");
     try {
-      // Read just before writing so changes made in the management page are retained.
-      const result = await chrome.storage.local.get(STORAGE_KEY);
-      const next = new Set((Array.isArray(result[STORAGE_KEY]) ? result[STORAGE_KEY] : [])
-        .map(normalizeWord).filter(Boolean));
-      if (removing ? next.delete(word) : !next.has(word)) {
-        if (!removing) next.add(word);
-        await chrome.storage.local.set({
-          [STORAGE_KEY]: [...next].sort((a, b) => a.localeCompare(b, "en"))
-        });
-      }
-      knownWords = next;
+      const response = await chrome.runtime.sendMessage({
+        type: "vocab:mutate",
+        mutation: removing ? { remove: [word] } : { add: [word] }
+      });
+      if (!response?.ok) throw new Error(response?.error || "Could not save.");
+      knownWords = new Set(response.words);
       wordsRevision += 1;
       hideWordButton();
       updateCaptions();

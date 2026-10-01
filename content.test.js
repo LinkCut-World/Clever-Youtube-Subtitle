@@ -103,7 +103,18 @@ test("caption words keep spacing and can be added or removed from the hover butt
       })
     },
     chrome: {
-      runtime: { lastError: null },
+      runtime: {
+        lastError: null,
+        async sendMessage({ type, mutation }) {
+          assert.equal(type, "vocab:mutate");
+          const next = new Set(savedWords);
+          for (const word of mutation.add || []) next.add(word);
+          for (const word of mutation.remove || []) next.delete(word);
+          savedWords = [...next].sort();
+          onStorageChanged({ knownWords: {} }, "local");
+          return { ok: true, words: savedWords };
+        }
+      },
       storage: {
         local: {
           get: (_key, callback) => callback

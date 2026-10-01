@@ -34,10 +34,10 @@ main { padding-block: 28px 56px; }
 h2 { margin: 0; font-size: 18px; }
 .section-help { margin: 8px 0 20px; color: #6b7890; font-size: 12px; line-height: 1.6; }
 .field-label { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 700; }
-input[type="file"], input[type="search"], textarea { width: 100%; }
+input[type="file"], input[type="search"], input[type="url"], input[type="password"], textarea { width: 100%; }
 input[type="file"] { font-size: 12px; }
 input[type="file"]::file-selector-button { margin-right: 10px; padding: 8px 12px; border: 1px solid #c9d3e6; border-radius: 8px; background: #fff; color: #263957; cursor: pointer; }
-input[type="search"], textarea { padding: 10px 12px; border: 1px solid #cbd5e5; border-radius: 9px; background: #fff; color: #1a2540; font-size: 13px; }
+input[type="search"], input[type="url"], input[type="password"], textarea { padding: 10px 12px; border: 1px solid #cbd5e5; border-radius: 9px; background: #fff; color: #1a2540; font-size: 13px; }
 textarea { min-height: 134px; resize: vertical; line-height: 1.5; }
 .preview { min-height: 18px; margin: 10px 0 20px; color: #68768d; font-size: 12px; overflow-wrap: anywhere; }
 .import-mode { display: flex; flex-wrap: wrap; gap: 12px 20px; padding: 0; margin: 0 0 20px; border: 0; }
@@ -62,6 +62,14 @@ button.danger:not(:disabled):hover { background: #fff4f4; }
 .word-list span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
 .word-list button { flex: 0 0 auto; padding: 4px 7px; margin-left: 8px; border: 0; border-radius: 6px; background: transparent; color: #a53842; font-size: 12px; }
 .word-list button:hover { background: #fcecee; }
+.sync-card { margin-top: 18px; }
+.sync-card .section-help { margin-bottom: 18px; }
+.sync-card .field-label:not(:first-of-type) { margin-top: 16px; }
+.sync-help, .sync-status { color: #66738a; font-size: 12px; line-height: 1.5; }
+.sync-help { margin: 7px 0 0; }
+.sync-status { min-height: 18px; margin: 12px 0 0; overflow-wrap: anywhere; }
+.sync-status.error { color: #b52d37; }
+.sync-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
 .empty-state { margin: 16px 0; color: #758198; font-size: 13px; }
 .pagination { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 22px; }
 .pagination span { min-width: 86px; color: #526078; font-size: 12px; text-align: center; }

@@ -24,7 +24,7 @@
           <span class="overview-label">Words saved</span>
           <strong id="word-count">0</strong>
         </div>
-        <p>Your words stay in this Chrome browser. They are not sent to a server.</p>
+        <p>Your words stay in this browser unless you turn on GitHub sync below.</p>
       </section>
 
       <p id="message" class="message" role="status" aria-live="polite"></p>
@@ -52,6 +52,22 @@
           <button id="add-button" class="primary" type="button">Add to My Vocabulary</button>
         </section>
       </div>
+
+      <section class="card sync-card" aria-labelledby="sync-heading">
+        <h2 id="sync-heading">Sync between devices</h2>
+        <p class="section-help">Use the same private GitHub repository on each device. Keep it separate from the extension's code repository.</p>
+        <label class="field-label" for="sync-repository">GitHub repository URL</label>
+        <input id="sync-repository" type="url" spellcheck="false" autocomplete="off" placeholder="https://github.com/name/my-vocabulary">
+        <p class="sync-help">You can paste an HTTPS URL that includes an access token. After saving, the token is hidden from this page.</p>
+        <label class="field-label" for="sync-token">Access token (if it is not in the URL)</label>
+        <input id="sync-token" type="password" autocomplete="off" placeholder="Leave empty to keep the saved token">
+        <div class="sync-actions">
+          <button id="sync-connect" class="primary" type="button">Save and sync</button>
+          <button id="sync-now" class="secondary" type="button">Sync now</button>
+          <button id="sync-disable" class="secondary" type="button">Turn off sync</button>
+        </div>
+        <p id="sync-status" class="sync-status" role="status" aria-live="polite">Checking sync…</p>
+      </section>
 
       <section class="card library" aria-labelledby="library-heading">
         <div class="library-header">

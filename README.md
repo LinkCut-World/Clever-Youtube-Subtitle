@@ -22,11 +22,23 @@ The ready-to-use English word model is included. You do not need Node.js to use 
 
 Changes to My Vocabulary update the open caption right away. Turning off YouTube captions also turns off the filtered caption.
 
-## Move your words to another browser
+## Sync between devices
+
+Create a **separate private GitHub repository** for your vocabulary. Do not use the Clever Youtube Subtitle code repository: its history may become public later.
+
+1. Give a fine-grained GitHub access token permission to read and write **Contents** of only that private vocabulary repository.
+2. In **My Vocabulary**, under **Sync between devices**, paste the repository's HTTPS URL. You can include the token in the URL, such as `https://USERNAME:TOKEN@github.com/USERNAME/my-vocabulary.git`, or enter it in the separate token field. Use your real values only in the extension; never add the token to this code repository.
+3. Click **Save and sync**. Repeat on your other device with the same repository and its own token. The page shows the repository address without the token after you save it.
+
+The extension saves changes locally first, then syncs in the background after about 30 seconds and checks for changes every five minutes. **Sync now** checks immediately. If you are offline, your words stay on your device and sync when it can connect again. Turning off sync keeps your local words and removes the saved connection token. When two devices connect for the first time, their existing words are combined. To replace the shared vocabulary, connect and sync first, then use **Replace My Vocabulary**.
+
+Changes to different words are kept. If two devices change the same word, the action with the later recorded time wins; equal times use a stable device ID. GitHub write conflicts are retried automatically. Device clocks that are wrong can affect the order of offline changes. The private repository stores a compressed vocabulary file, including removal records so older device copies cannot restore deleted words.
+
+## Move your words with a file
 
 Open **My Vocabulary** on your first browser and click **Export TXT**. Move the saved TXT file to your other device. In the other browser, open **My Vocabulary**, choose that file, select **Replace My Vocabulary**, and click **Import words**. Use **Add to My Vocabulary** instead if you want to keep words already saved on the other device.
 
-This is a manual transfer. My Vocabulary uses local browser storage, so it does not sync by itself. Keep the exported TXT file as a backup.
+This is a manual transfer. Keep the exported TXT file as a backup, even if you use GitHub sync.
 
 ### Kiwi Browser on Android
 
@@ -44,7 +56,7 @@ The bundled [wink-nlp](https://github.com/winkjs/wink-nlp) model runs in your br
 
 ## Privacy
 
-My Vocabulary is saved in Chrome's local extension storage. The extension does not send your words to a server. It works on YouTube pages and reads YouTube's own captions. If another extension adds captions on top of the video, turn off that other caption layer to see only the filtered YouTube captions.
+My Vocabulary is saved in local extension storage. GitHub sync is optional. When you turn it on, the extension sends your vocabulary and change records to the private repository you choose through GitHub's API. The access token is saved only in that browser's extension storage, not in the source code or installation ZIP. It works on YouTube pages and reads YouTube's own captions. If another extension adds captions on top of the video, turn off that other caption layer to see only the filtered YouTube captions.
 
 ## Build and test
 

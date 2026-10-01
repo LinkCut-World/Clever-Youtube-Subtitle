@@ -20,7 +20,13 @@
     next: document.getElementById("next-button"),
     pageLabel: document.getElementById("page-label"),
     exportButton: document.getElementById("export-button"),
-    clearButton: document.getElementById("clear-button")
+    clearButton: document.getElementById("clear-button"),
+    syncRepository: document.getElementById("sync-repository"),
+    syncToken: document.getElementById("sync-token"),
+    syncConnect: document.getElementById("sync-connect"),
+    syncNow: document.getElementById("sync-now"),
+    syncDisable: document.getElementById("sync-disable"),
+    syncStatus: document.getElementById("sync-status")
   };
 
   let words = [];
@@ -28,6 +34,14 @@
   let page = 1;
   let busy = false;
   let ready = false;
+  let syncBusy = false;
+  let syncConnected = false;
+
+  async function background(message) {
+    const response = await chrome.runtime.sendMessage(message);
+    if (!response?.ok) throw new Error(response?.error || "Could not complete this action.");
+    return response;
+  }
 
   function showMessage(text, isError = false) {
     elements.message.textContent = text;
@@ -51,6 +65,9 @@
     elements.addButton.disabled = !ready || busy;
     elements.exportButton.disabled = !ready || busy || words.length === 0;
     elements.clearButton.disabled = !ready || busy || words.length === 0;
+    elements.syncConnect.disabled = syncBusy;
+    elements.syncNow.disabled = syncBusy || !syncConnected;
+    elements.syncDisable.disabled = syncBusy || !syncConnected;
 
     const fragment = document.createDocumentFragment();
     for (const word of pageData.items) {
@@ -70,13 +87,13 @@
     elements.list.replaceChildren(fragment);
   }
 
-  async function saveWords(nextWords, successText) {
+  async function saveWords(mutation, successText) {
     if (!ready || busy) return false;
     busy = true;
     render();
     try {
-      await chrome.storage.local.set({ [STORAGE_KEY]: nextWords });
-      words = nextWords;
+      const response = await background({ type: "vocab:mutate", mutation });
+      words = canonicalWords(response.words);
       render();
       showMessage(successText);
       return true;
@@ -85,6 +102,48 @@
       return false;
     } finally {
       busy = false;
+      render();
+    }
+  }
+
+  function showSyncStatus(text, isError = false) {
+    elements.syncStatus.textContent = text;
+    elements.syncStatus.classList.toggle("error", isError);
+  }
+
+  async function refreshSyncStatus() {
+    try {
+      const status = await background({ type: "sync:status" });
+      syncConnected = status.connected;
+      elements.syncRepository.value = status.repository
+        ? `https://github.com/${status.repository}` : "";
+      if (!status.connected) showSyncStatus("Sync is off. Your words stay in this browser.");
+      else if (status.lastError) showSyncStatus(`Sync needs attention: ${status.lastError}`, true);
+      else if (status.lastSuccess) {
+        showSyncStatus(`Last synced: ${new Date(status.lastSuccess).toLocaleString()}`);
+      } else showSyncStatus("Ready to sync.");
+    } catch (error) {
+      showSyncStatus(error.message, true);
+    }
+    render();
+  }
+
+  async function syncAction(message, successText) {
+    if (syncBusy) return;
+    syncBusy = true;
+    render();
+    try {
+      const result = await background(message);
+      if (result.words) words = canonicalWords(result.words);
+      elements.syncToken.value = "";
+      showMessage(successText);
+      await refreshSyncStatus();
+    } catch (error) {
+      await refreshSyncStatus();
+      showSyncStatus(error.message, true);
+      showMessage(error.message, true);
+    } finally {
+      syncBusy = false;
       render();
     }
   }
@@ -135,7 +194,7 @@
     const message = mode === "replace"
       ? `My Vocabulary now has ${nextWords.length.toLocaleString()} words.`
       : `Added ${added.toLocaleString()} words to My Vocabulary.`;
-    if (await saveWords(nextWords, message)) {
+    if (await saveWords(mode === "replace" ? { replace: pendingImport } : { add: pendingImport }, message)) {
       pendingImport = null;
       elements.file.value = "";
       elements.preview.textContent = "No file chosen";
@@ -156,7 +215,7 @@
       showMessage("These words are already in My Vocabulary.");
       return;
     }
-    if (await saveWords(nextWords, `Added ${added.toLocaleString()} words to My Vocabulary.`)) {
+    if (await saveWords({ add: additions }, `Added ${added.toLocaleString()} words to My Vocabulary.`)) {
       elements.addInput.value = "";
     }
   });
@@ -172,7 +231,7 @@
     const button = event.target.closest("button[data-word]");
     if (!button || !ready || busy) return;
     const word = button.dataset.word;
-    await saveWords(words.filter((entry) => entry !== word), `Removed “${word}” from My Vocabulary.`);
+    await saveWords({ remove: [word] }, `Removed “${word}” from My Vocabulary.`);
   });
 
   elements.exportButton.addEventListener("click", () => {
@@ -191,7 +250,28 @@
   elements.clearButton.addEventListener("click", async () => {
     if (!ready || busy || !words.length) return;
     if (!window.confirm(`Remove all ${words.length.toLocaleString()} words from My Vocabulary? You cannot undo this.`)) return;
-    await saveWords([], "Removed all words from My Vocabulary.");
+    await saveWords({ replace: [] }, "Removed all words from My Vocabulary.");
+  });
+
+  elements.syncConnect.addEventListener("click", () => {
+    const address = elements.syncRepository.value;
+    try {
+      const safe = new URL(address);
+      safe.username = "";
+      safe.password = "";
+      elements.syncRepository.value = safe.href;
+    } catch { /* The background will show a clear URL error. */ }
+    syncAction({
+      type: "sync:configure",
+      address,
+      token: elements.syncToken.value
+    }, "My Vocabulary synced with GitHub.");
+  });
+  elements.syncNow.addEventListener("click", () => {
+    syncAction({ type: "sync:now" }, "My Vocabulary synced with GitHub.");
+  });
+  elements.syncDisable.addEventListener("click", () => {
+    syncAction({ type: "sync:disable" }, "GitHub sync turned off. Your words are still here.");
   });
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -199,8 +279,16 @@
       words = canonicalWords(changes[STORAGE_KEY].newValue);
       render();
     }
+    if (areaName === "local" && !syncBusy) {
+      if (changes.syncLastError?.newValue) {
+        showSyncStatus(`Sync needs attention: ${changes.syncLastError.newValue}`, true);
+      } else if (changes.syncLastSuccess?.newValue) {
+        showSyncStatus(`Last synced: ${new Date(changes.syncLastSuccess.newValue).toLocaleString()}`);
+      }
+    }
   });
 
   render();
   loadWords();
+  refreshSyncStatus();
 })();

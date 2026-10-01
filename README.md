@@ -22,6 +22,14 @@ The ready-to-use English word model is included. You do not need Node.js to use 
 
 Changes to My Vocabulary update the open caption right away. Turning off YouTube captions also turns off the filtered caption.
 
+## Review the previous caption
+
+After captions move on, a small **↶ Previous caption** button appears at the top left of the video. Click it to pause the video and open the previous caption. You can reveal hidden words and use the same **+** and **−** word buttons there, without rewinding or trying to pause at the right moment.
+
+The previous caption stays open while you update My Vocabulary. Click **Continue playback**, click **Previous caption** again, or press **Esc** when you are ready to continue. If the video was already paused, the closing button says **Close** and keeps it paused.
+
+The extension remembers the last distinct caption it saw on the current video. Line wrapping and words gradually added to a caption do not replace that history. Seeking, changing videos, or turning off CC clears it.
+
 ## Sync between devices
 
 Create a **separate private Git repository** for your vocabulary. It can be on GitHub, GitLab, Gitea, Forgejo, or your own Git server. The server must support Git Smart HTTP for reading and pushing over HTTP or HTTPS. Do not use the Clever Youtube Subtitle code repository: its history may become public later.
@@ -46,7 +54,9 @@ This is a manual transfer. Keep the exported TXT file as a backup, even if you u
 
 Kiwi can install a ZIP of the extension from its extensions page. Open **Extensions**, turn on **Developer mode**, tap **+ (from .zip/.crx/.user.js)**, and choose the extension ZIP. Then open **My Vocabulary** in Kiwi and import the TXT file you moved from your computer.
 
-On a touch screen, tap a caption word, lift your finger, then tap the **+** or **−** button. The first tap only selects the word. The button stays open until you use it or tap outside the word. If YouTube captions are not filtered on the mobile site, use Kiwi's **Desktop site** mode for YouTube and turn on CC there.
+On a touch screen, tap a caption word to pause the video and select the word. Lift your finger, then tap the **+** or **−** button to change My Vocabulary. The first tap does not change your saved words. The button stays open until you use it, tap outside the word, or resume playback. Updating My Vocabulary keeps the video paused; use YouTube's play button when you are ready to continue. If YouTube captions are not filtered on the mobile site, use Kiwi's **Desktop site** mode for YouTube and turn on CC there.
+
+You can also tap **Previous caption** to pause and review the last caption, then tap **Continue playback** when you have finished.
 
 [Kiwi Browser is archived](https://github.com/kiwibrowser/src.next/blob/kiwi/README.md), so support for this Manifest V3 extension may vary by Kiwi version.
 

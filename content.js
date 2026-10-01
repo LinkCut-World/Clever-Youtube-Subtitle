@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "knownWords";
-  const WORD_SELECTOR = ".ytp-caption-segment .clever-subtitle-unknown, .ytp-caption-segment .clever-subtitle-known";
+  const WORD_SELECTOR = ".ytp-caption-segment .clever-subtitle-unknown, .ytp-caption-segment .clever-subtitle-known, .clever-subtitle-review-caption .clever-subtitle-unknown, .clever-subtitle-review-caption .clever-subtitle-known";
   const { normalizeWord, captionPartsForSegments } = globalThis.CleverSubtitleWords;
   const originals = new WeakMap();
   let knownWords = new Set();
@@ -19,6 +19,19 @@
   let wordButtonArmed = false;
   let activeCaptionText = null;
   let activeRect = null;
+  let activeInReview = false;
+  let currentCaption = null;
+  let previousCaption = null;
+  let reviewedCaption = null;
+  let review;
+  let reviewToggle;
+  let reviewPanel;
+  let reviewCaption;
+  let reviewClose;
+  let reviewRevision = -1;
+  let trackedVideo = null;
+  let resumeVideo = null;
+  let staleCaptionKey = null;
 
   function hideWordButton() {
     clearTimeout(hideTimer);
@@ -29,12 +42,159 @@
     wordButtonArmed = false;
     activeCaptionText = null;
     activeRect = null;
+    activeInReview = false;
     if (wordButton) wordButton.hidden = true;
+  }
+
+  function closeReview(resume = true) {
+    if (activeInReview) hideWordButton();
+    reviewedCaption = null;
+    if (reviewPanel) {
+      reviewPanel.hidden = true;
+      reviewToggle.setAttribute("aria-expanded", "false");
+    }
+    const video = resumeVideo;
+    resumeVideo = null;
+    if (resume && video && video === trackedVideo && video.isConnected && video.paused && !video.ended && !video.seeking) {
+      const playing = video.play();
+      playing?.catch(() => {});
+    }
+  }
+
+  function resetCaptionHistory(event) {
+    // YouTube can leave the old caption in the DOM briefly after a seek.
+    staleCaptionKey = event ? captionText([...document.querySelectorAll(".ytp-caption-segment")]
+      .map((segment) => segment.textContent || "")) : null;
+    closeReview(false);
+    hideWordButton();
+    currentCaption = null;
+    previousCaption = null;
+    if (review) review.hidden = true;
+  }
+
+  function onVideoPlay() {
+    // If the user resumes through YouTube, dismiss the frozen caption too.
+    if (touchSelection) hideWordButton();
+    closeReview(false);
+  }
+
+  function trackVideo(video) {
+    if (trackedVideo === video) return;
+    const replacingVideo = Boolean(trackedVideo || staleCaptionKey !== null);
+    if (trackedVideo) {
+      trackedVideo.removeEventListener("seeking", resetCaptionHistory);
+      trackedVideo.removeEventListener("seeked", updateCaptions);
+      trackedVideo.removeEventListener("emptied", resetCaptionHistory);
+      trackedVideo.removeEventListener("play", onVideoPlay);
+    }
+    resetCaptionHistory(replacingVideo ? { type: "videochange" } : undefined);
+    trackedVideo = video;
+    if (video) {
+      video.addEventListener("seeking", resetCaptionHistory);
+      video.addEventListener("seeked", updateCaptions);
+      video.addEventListener("emptied", resetCaptionHistory);
+      video.addEventListener("play", onVideoPlay);
+    }
+  }
+
+  function openReview() {
+    if (!previousCaption || !trackedVideo) return;
+    hideWordButton();
+    reviewedCaption = previousCaption;
+    reviewRevision = -1;
+    reviewCaption.textContent = reviewedCaption.text;
+    resumeVideo = !trackedVideo.paused && !trackedVideo.ended ? trackedVideo : null;
+    trackedVideo.pause();
+    reviewClose.textContent = resumeVideo ? "Continue playback" : "Close";
+    reviewPanel.hidden = false;
+    reviewToggle.setAttribute("aria-expanded", "true");
+    renderReviewCaption();
+  }
+
+  function ensureReview(host) {
+    if (!review) {
+      review = document.createElement("section");
+      review.className = "clever-subtitle-review";
+      review.setAttribute("aria-label", "Previous caption");
+      reviewToggle = document.createElement("button");
+      reviewToggle.type = "button";
+      reviewToggle.className = "clever-subtitle-review-toggle";
+      reviewToggle.textContent = "↶ Previous caption";
+      reviewToggle.title = "View the previous caption and pause the video";
+      reviewToggle.setAttribute("aria-expanded", "false");
+      reviewToggle.setAttribute("aria-controls", "clever-subtitle-review-panel");
+      reviewToggle.addEventListener("click", () => {
+        if (reviewedCaption) closeReview();
+        else openReview();
+      });
+      reviewPanel = document.createElement("div");
+      reviewPanel.id = "clever-subtitle-review-panel";
+      reviewPanel.className = "clever-subtitle-review-panel";
+      reviewPanel.hidden = true;
+      reviewCaption = document.createElement("div");
+      reviewCaption.className = "clever-subtitle-review-caption";
+      reviewClose = document.createElement("button");
+      reviewClose.type = "button";
+      reviewClose.className = "clever-subtitle-review-close";
+      reviewClose.addEventListener("click", () => {
+        closeReview();
+        reviewToggle.focus();
+      });
+      reviewPanel.appendChild(reviewCaption);
+      reviewPanel.appendChild(reviewClose);
+      review.appendChild(reviewToggle);
+      review.appendChild(reviewPanel);
+      // Keep review actions from also toggling YouTube's player underneath.
+      for (const type of ["pointerdown", "touchstart", "mousedown", "click", "dblclick"]) {
+        review.addEventListener(type, (event) => event.stopPropagation());
+      }
+    }
+    if (review.parentElement !== host) host.appendChild(review);
+  }
+
+  function renderReviewCaption() {
+    if (!reviewedCaption || reviewRevision === wordsRevision) return;
+    const parts = captionPartsForSegments([reviewedCaption.text], knownWords)[0];
+    updateSegment(reviewCaption, parts, reviewedCaption.text);
+    reviewRevision = wordsRevision;
+  }
+
+  function updateCaptionHistory(texts) {
+    const video = document.querySelector("video.html5-main-video") || document.querySelector("video");
+    trackVideo(video);
+    const host = video?.closest(".html5-video-player") || video?.parentElement;
+    if (!host) return;
+    const ccButton = host.querySelector(".ytp-subtitles-button");
+    if (ccButton?.getAttribute("aria-pressed") === "false") {
+      resetCaptionHistory();
+      return;
+    }
+    const key = captionText(texts);
+    if (key && !video.seeking) {
+      if (key === staleCaptionKey) return;
+      staleCaptionKey = null;
+      const next = { key, text: texts.join(" ") };
+      if (currentCaption && currentCaption.key !== key && !key.startsWith(`${currentCaption.key} `)) {
+        previousCaption = currentCaption;
+      }
+      currentCaption = next;
+    }
+    if (!previousCaption) return;
+    ensureReview(host);
+    review.hidden = false;
+    renderReviewCaption();
   }
 
   function positionWordButton() {
     if (!activeElement || !wordButton || wordButton.hidden) return;
     const rect = activeElement.getBoundingClientRect();
+    if (activeInReview) {
+      const visible = reviewCaption.getBoundingClientRect();
+      if (rect.bottom <= visible.top || rect.top >= visible.bottom || rect.right <= visible.left || rect.left >= visible.right) {
+        hideWordButton();
+        return;
+      }
+    }
     if (rect.width > 0 && rect.height > 0) activeRect = rect;
     const width = wordButton.offsetWidth;
     const height = wordButton.offsetHeight;
@@ -121,7 +281,8 @@
       touchSelection = true;
     }
     activeElement = element;
-    activeCaptionText = captionText([...document.querySelectorAll(".ytp-caption-segment")]
+    activeInReview = Boolean(reviewedCaption && reviewCaption.contains(element));
+    activeCaptionText = activeInReview ? reviewedCaption.key : captionText([...document.querySelectorAll(".ytp-caption-segment")]
       .map((segment) => segment.textContent || ""));
     activeElement.classList.add("clever-subtitle-active");
     const word = element.dataset.cleverWord;
@@ -181,7 +342,8 @@
       word: activeElement.dataset.cleverWord,
       known: activeElement.classList.contains("clever-subtitle-known"),
       rect: activeRect,
-      touch: touchSelection
+      touch: touchSelection,
+      review: activeInReview
     };
     const texts = segments.map((segment) => segment.textContent || "");
     const context = JSON.stringify(texts);
@@ -191,18 +353,22 @@
       analyzedParts = captionPartsForSegments(texts, knownWords);
     }
     segments.forEach((segment, index) => updateSegment(segment, analyzedParts[index], context));
+    updateCaptionHistory(texts);
     if (!selection) return;
     // YouTube may rebuild or split a caption when player controls appear.
     // Keep the selected word if the displayed sentence is still the same.
-    if (selection.captionText !== captionText(texts)) {
+    const selectedCaption = selection.review ? reviewedCaption?.key : captionText(texts);
+    const selectedSegments = selection.review && reviewedCaption ? [reviewCaption] : segments;
+    if (selection.captionText !== selectedCaption) {
       hideWordButton();
       return;
     }
-    if (segments.some((segment) => segment.contains(activeElement))) {
+    if (selectedSegments.some((segment) => segment.contains(activeElement))) {
       positionWordButton();
       return;
     }
     const candidates = [...document.querySelectorAll(WORD_SELECTOR)].filter((element) =>
+      selectedSegments.some((segment) => segment.contains(element)) &&
       element.textContent === selection.text &&
       element.dataset.cleverWord === selection.word &&
       element.classList.contains("clever-subtitle-known") === selection.known
@@ -262,6 +428,11 @@
 
   function handleTouchStart(event, x, y) {
     if (event.target === wordButton) return;
+    if (review?.contains(event.target) && !event.target.closest?.(WORD_SELECTOR)) {
+      blockedTouch = null;
+      hideWordButton();
+      return;
+    }
     const element = wordAtPoint(event.target, x, y);
     if (!element) {
       blockedTouch = null;
@@ -272,6 +443,7 @@
     wordButtonArmed = false;
     event.preventDefault();
     event.stopImmediatePropagation();
+    if (trackedVideo && !trackedVideo.paused) trackedVideo.pause();
     showWordButton(element, true);
   }
 
@@ -344,15 +516,25 @@
   window.addEventListener("scroll", positionWordButton, true);
   window.addEventListener("resize", positionWordButton);
   document.addEventListener("fullscreenchange", hideWordButton);
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || !reviewedCaption) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    closeReview();
+    reviewToggle.focus();
+  }, true);
+  document.addEventListener("yt-navigate-start", resetCaptionHistory);
+  document.addEventListener("yt-navigate-finish", updateCaptions);
 
   function involvesCaptions(record) {
     const target = record.target.nodeType === Node.ELEMENT_NODE
       ? record.target
       : record.target.parentElement;
     if (target?.closest?.(".caption-window, .captions-text, .ytp-caption-segment")) return true;
+    if (target?.matches?.(".ytp-subtitles-button")) return true;
     return [...record.addedNodes, ...record.removedNodes].some((node) =>
       node.nodeType === Node.ELEMENT_NODE &&
-      (node.matches(".ytp-caption-segment") || node.querySelector(".ytp-caption-segment"))
+      (node.matches(".ytp-caption-segment, video") || node.querySelector(".ytp-caption-segment, video"))
     );
   }
 
@@ -362,6 +544,8 @@
   observer.observe(document.documentElement, {
     childList: true,
     characterData: true,
+    attributes: true,
+    attributeFilter: ["aria-pressed"],
     subtree: true
   });
   loadWords();

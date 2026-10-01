@@ -1,20 +1,25 @@
-.ytp-caption-segment .clever-subtitle-known {
+.ytp-caption-segment .clever-subtitle-known,
+.clever-subtitle-review-caption .clever-subtitle-known {
   opacity: 0 !important;
   pointer-events: auto !important;
   cursor: pointer;
 }
 
 .ytp-caption-segment .clever-subtitle-known:hover,
-.ytp-caption-segment .clever-subtitle-known.clever-subtitle-active {
+.ytp-caption-segment .clever-subtitle-known.clever-subtitle-active,
+.clever-subtitle-review-caption .clever-subtitle-known:hover,
+.clever-subtitle-review-caption .clever-subtitle-known.clever-subtitle-active {
   opacity: 0.35 !important;
 }
 
-.ytp-caption-segment .clever-subtitle-unknown {
+.ytp-caption-segment .clever-subtitle-unknown,
+.clever-subtitle-review-caption .clever-subtitle-unknown {
   pointer-events: auto !important;
   cursor: pointer;
 }
 
-.ytp-caption-segment .clever-subtitle-unknown:hover {
+.ytp-caption-segment .clever-subtitle-unknown:hover,
+.clever-subtitle-review-caption .clever-subtitle-unknown:hover {
   text-decoration: underline dotted;
   text-underline-offset: 0.15em;
 }
@@ -46,7 +51,91 @@
   opacity: 0.7;
 }
 
+.clever-subtitle-review {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 60;
+  max-width: calc(100% - 24px);
+  max-height: calc(100% - 24px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  color: #fff;
+  font: 14px/1.4 Arial, sans-serif;
+  color-scheme: dark;
+  text-align: left;
+  pointer-events: auto;
+}
+
+.clever-subtitle-review[hidden],
+.clever-subtitle-review-panel[hidden],
+.clever-subtitle-word-button[hidden] {
+  display: none !important;
+}
+
+.clever-subtitle-review-toggle,
+.clever-subtitle-review-close {
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 8px;
+  background: rgba(28, 28, 28, 0.94);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.clever-subtitle-review-toggle:hover,
+.clever-subtitle-review-close:hover {
+  background: #3a3a3a;
+}
+
+.clever-subtitle-review-toggle:focus-visible,
+.clever-subtitle-review-close:focus-visible,
+.clever-subtitle-word-button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+.clever-subtitle-review-panel {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: 520px;
+  max-width: 100%;
+  max-height: 300px;
+  min-height: 0;
+  flex-shrink: 1;
+  margin-top: 8px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+  background: rgba(20, 20, 20, 0.96);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+.clever-subtitle-review-caption {
+  margin-bottom: 16px;
+  min-height: 0;
+  overflow: auto;
+  font-size: 20px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.clever-subtitle-review-close {
+  align-self: flex-start;
+}
+
 @media (pointer: coarse) {
+  .clever-subtitle-review-toggle,
+  .clever-subtitle-review-close {
+    min-height: 44px;
+  }
+
   .clever-subtitle-word-button {
     width: 36px;
     height: 36px;

@@ -38,6 +38,7 @@
   let ready = false;
   let syncBusy = false;
   let syncConnected = false;
+  let syncAddressDraft = null;
 
   async function background(message) {
     const response = await chrome.runtime.sendMessage(message);
@@ -139,6 +140,7 @@
       if (result.words) words = canonicalWords(result.words);
       elements.syncToken.value = "";
       elements.syncUsername.value = "";
+      syncAddressDraft = null;
       showMessage(successText);
       await refreshSyncStatus();
     } catch (error) {
@@ -258,11 +260,13 @@
 
   elements.syncConnect.addEventListener("click", async () => {
     if (syncBusy) return;
-    const address = elements.syncRepository.value;
+    const entered = elements.syncRepository.value;
+    const address = syncAddressDraft?.url === entered ? syncAddressDraft.address : entered;
     try {
       const parsed = globalThis.CleverSubtitleGitSync.parseRepositoryAddress(address);
       elements.syncRepository.value = parsed.url;
-      const allowed = await chrome.permissions.request({ origins: [parsed.origin] });
+      syncAddressDraft = { url: parsed.url, address };
+      const allowed = await globalThis.CleverSubtitleSyncAccess.ensureServerAccess(chrome.permissions, parsed.origin);
       if (!allowed) {
         showSyncStatus("Allow access to this Git server to turn on sync.", true);
         return;
@@ -276,6 +280,7 @@
       branch: elements.syncBranch.value
     }, "My Vocabulary synced with your Git repository.");
   });
+  elements.syncRepository.addEventListener("input", () => { syncAddressDraft = null; });
   elements.syncNow.addEventListener("click", () => {
     syncAction({ type: "sync:now" }, "My Vocabulary synced with your Git repository.");
   });

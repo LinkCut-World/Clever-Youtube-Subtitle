@@ -78,6 +78,8 @@ Caption line breaks, separate text segments, and trailing spaces keep this match
 
 The bundled [wink-nlp](https://github.com/winkjs/wink-nlp) model runs in your browser. It can make mistakes when a word has more than one meaning or when a caption is too short. You can edit My Vocabulary at any time.
 
+The extension uses the base forms returned by the model. It does not add its own grammar rules to change them. For example, the current model keeps `understanding` in `on understanding what happens`, so saving only `understand` does not hide that word in this sentence.
+
 ## Privacy
 
 My Vocabulary is saved in local extension storage. Git sync is optional. When you turn it on, the extension sends your vocabulary and change records to the Git repository you choose. Login details are saved only in that browser's extension storage, not in the source code or installation ZIP. Server access is requested for the host you enter. The extension cannot check repository visibility for every Git server, so choose a private repository. It works on YouTube pages and reads YouTube's own captions. If another extension adds captions on top of the video, turn off that other caption layer to see only the filtered YouTube captions.

@@ -96,6 +96,27 @@ test("a token text mismatch still avoids assigning unrelated lemmas", () => {
   assert.equal(part.addWord, "gives");
 });
 
+function checkUnchangedLemmas(api) {
+  const model = require("wink-nlp")(require("wink-eng-lite-web-model"));
+  for (const text of [
+    "his main focus was on understanding what happens when you plug in a complex value for s.",
+    "My understanding is different.",
+    "I am understanding this better."
+  ]) {
+    const tokens = model.readDoc(text).tokens();
+    const index = tokens.out(model.its.value).indexOf("understanding");
+    const lemma = normalizeWord(tokens.itemAt(index).out(model.its.lemma));
+    const part = api.captionParts(text, new Set(["understand"]))
+      .find((part) => part.text === "understanding");
+    assert.equal(part.addWord, lemma, "The adapter must not override the upstream linguistic result");
+    assert.equal(part.hidden, lemma === "understand");
+  }
+}
+
+test("the understanding examples preserve the upstream model's lemmas", () => {
+  checkUnchangedLemmas({ captionParts });
+});
+
 test("the packaged browser model matches likes and the reported gives example", () => {
   const context = { atob, Uint8Array, ArrayBuffer, DataView };
   context.globalThis = context;
@@ -108,4 +129,5 @@ test("the packaged browser model matches likes and the reported gives example", 
   assert.equal(parts[2].hidden, true);
   assert.equal(parts[4].hidden, false);
   checkGivesMatching(context.CleverSubtitleWords);
+  checkUnchangedLemmas(context.CleverSubtitleWords);
 });

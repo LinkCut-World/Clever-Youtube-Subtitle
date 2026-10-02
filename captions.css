@@ -39,6 +39,7 @@
   text-align: center;
   cursor: pointer;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  touch-action: manipulation;
 }
 
 .clever-subtitle-word-button:hover,

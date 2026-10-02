@@ -101,6 +101,12 @@ class FakeElement {
   getAttribute(name) { return this[name] ?? null; }
   focus() { this.focused = true; }
   getBoundingClientRect() {
+    if (this.classList.contains("clever-subtitle-word-button")) {
+      const left = parseFloat(this.style.left || "0");
+      const top = parseFloat(this.style.top || "0");
+      return { left, top, right: left + this.offsetWidth, bottom: top + this.offsetHeight,
+        width: this.offsetWidth, height: this.offsetHeight };
+    }
     const layouts = {
       "clever-subtitle-review-toggle": { left: 20, top: 20, right: 180, bottom: 64, width: 160, height: 44 },
       "clever-subtitle-review-close": { left: 36, top: 320, right: 206, bottom: 364, width: 170, height: 44 },
@@ -513,6 +519,123 @@ function movableReview(app, { scale = 1 } = {}) {
   };
   return { review, toggle, panel, geometry, center };
 }
+
+test("a separate covered tap changes a word on release without waiting for a native click", async () => {
+  for (const paths of [["pointer"], ["touch"], ["pointer", "touch"], ["mouse"]]) {
+    const app = createPlayer();
+    const [segment] = app.setCaption("He likes her");
+    const word = segment.querySelectorAll(".clever-subtitle-unknown")[1];
+    word.getClientRects = () => [word.getBoundingClientRect()];
+    if (paths[0] === "mouse") app.hover(word);
+    else {
+      emitTouch(app, "pointerdown", app.player, 125, 210);
+      emitTouch(app, "pointerup", app.player, 125, 210);
+    }
+    const button = app.find(".clever-subtitle-word-button");
+    const { left, top, width, height } = button.getBoundingClientRect();
+    const x = left + width / 2, y = top + height / 2;
+    for (const path of paths) {
+      const type = path === "touch" ? "touchstart" : "pointerdown";
+      assert.equal(emitTouch(app, type, app.player, x, y,
+        { pointerType: path === "mouse" ? "mouse" : "touch", button: 0 }).blocked, true);
+    }
+    assert.deepEqual(app.savedWords(), [], "Pressing the button must wait for release");
+    for (const path of paths) emitTouch(app, path === "touch" ? "touchend" : "pointerup", app.player, x, y,
+      { pointerType: path === "mouse" ? "mouse" : "touch", button: 0 });
+    await new Promise(setImmediate);
+    assert.deepEqual(app.savedWords(), ["like"]);
+    assert.equal(emitTouch(app, "click", app.player, x, y).blocked, true,
+      "The following synthetic click must not reach YouTube");
+    assert.equal(segment.querySelector(".clever-subtitle-known").textContent, "likes");
+    assert.equal(button.hidden, true);
+  }
+});
+
+test("slow local saves show immediate feedback and failed saves remain retryable", async () => {
+  const app = createPlayer();
+  const [segment] = app.setCaption("He likes her");
+  app.hover(segment.querySelectorAll(".clever-subtitle-unknown")[1]);
+  const button = app.find(".clever-subtitle-word-button");
+  const original = app.context.chrome.runtime.sendMessage;
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  app.context.chrome.runtime.sendMessage = async (message) => { await gate; return original(message); };
+  const pending = app.click(button);
+  assert.equal(button.textContent, "…", "The saving state must be visible without hovering a tooltip");
+  assert.equal(button.disabled, true);
+  assert.deepEqual(app.savedWords(), []);
+  release();
+  await pending;
+  assert.deepEqual(app.savedWords(), ["like"]);
+  app.hover(segment.querySelector(".clever-subtitle-known"));
+  app.context.chrome.runtime.sendMessage = async () => ({ ok: false, error: "Disk unavailable" });
+  await app.click(button);
+  assert.equal(button.hidden, false);
+  assert.equal(button.disabled, false);
+  assert.equal(button.textContent, "!");
+  assert.deepEqual(app.savedWords(), ["like"]);
+  app.context.chrome.runtime.sendMessage = original;
+  await app.click(button);
+  assert.deepEqual(app.savedWords(), []);
+});
+
+test("the selecting gesture and cancelled button gestures never change words, while the next separate tap does", async () => {
+  const app = createPlayer();
+  const [segment] = app.setCaption("He likes her");
+  const word = segment.querySelectorAll(".clever-subtitle-unknown")[1];
+  word.getClientRects = () => [word.getBoundingClientRect()];
+  emitTouch(app, "pointerdown", app.player, 125, 210);
+  const button = app.find(".clever-subtitle-word-button");
+  const rect = button.getBoundingClientRect();
+  const x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
+  // The browser can retarget the selecting touch to the newly shown button.
+  emitTouch(app, "touchstart", button, x, y);
+  emitTouch(app, "pointerup", app.player, 125, 210);
+  emitTouch(app, "click", button, x, y);
+  await new Promise(setImmediate);
+  assert.deepEqual(app.savedWords(), []);
+  assert.equal(button.hidden, false);
+  emitTouch(app, "pointerdown", app.player, x, y);
+  emitTouch(app, "pointermove", app.player, x + 40, y);
+  emitTouch(app, "pointerup", app.player, x + 40, y);
+  assert.deepEqual(app.savedWords(), []);
+  emitTouch(app, "touchstart", app.player, x, y);
+  emitTouch(app, "touchcancel", app.player, x, y);
+  emitTouch(app, "touchend", app.player, x, y);
+  assert.deepEqual(app.savedWords(), []);
+  emitTouch(app, "pointerdown", app.player, x, y);
+  emitTouch(app, "pointerup", app.player, x, y);
+  await new Promise(setImmediate);
+  assert.deepEqual(app.savedWords(), ["like"]);
+});
+
+test("a covered minus button in Previous caption removes the saved base word exactly once", async () => {
+  const app = createPlayer({ knownWords: ["like"] });
+  app.setCaption("He likes her");
+  app.setCaption("The next sentence");
+  app.click(app.find(".clever-subtitle-review-toggle"));
+  const word = app.find(".clever-subtitle-review-caption").querySelector(".clever-subtitle-known");
+  word.getClientRects = () => [word.getBoundingClientRect()];
+  emitTouch(app, "touchstart", app.player, 125, 210);
+  emitTouch(app, "touchend", app.player, 125, 210);
+  const button = app.find(".clever-subtitle-word-button");
+  assert.equal(button.textContent, "−");
+  const rect = button.getBoundingClientRect();
+  const x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
+  let mutations = 0;
+  const original = app.context.chrome.runtime.sendMessage;
+  app.context.chrome.runtime.sendMessage = (message) => { mutations++; return original(message); };
+  emitTouch(app, "pointerdown", app.player, x, y);
+  emitTouch(app, "touchstart", app.player, x, y);
+  emitTouch(app, "pointerup", app.player, x, y);
+  emitTouch(app, "touchend", app.player, x, y);
+  await new Promise(setImmediate);
+  emitTouch(app, "click", button, x, y);
+  assert.equal(mutations, 1);
+  assert.deepEqual(app.savedWords(), []);
+  assert.equal(app.find(".clever-subtitle-review-panel").hidden, false);
+  assert.equal(app.video.paused, true);
+});
 
 test("Previous caption drags through covered mouse and touch targets and snaps to either player edge", () => {
   for (const paths of [["pointer"], ["touch"], ["pointer", "touch"], ["mouse"]]) {

@@ -306,16 +306,17 @@
 
   async function changeActiveWord(event) {
     event.preventDefault();
-    event.stopPropagation();
+    event.stopPropagation?.();
     if (!activeElement || saving) return;
     // The tap that opened this button can also produce a click on the new button.
     // Wait for a separate touch on the button before changing stored words.
-    if (touchSelection && blockedTouch && Date.now() <= blockedTouch.until && !wordButtonArmed) return;
+    if (touchSelection && !wordButtonArmed && event.detail !== 0) return;
     const word = activeElement.dataset.cleverWord;
     const removing = activeElement.classList.contains("clever-subtitle-known");
     if (!word) return;
     saving = true;
     wordButton.disabled = true;
+    wordButton.textContent = "…";
     wordButton.title = "Saving…";
     wordButton.setAttribute("aria-label", "Saving…");
     try {
@@ -331,7 +332,8 @@
     } catch (error) {
       console.warn("Clever Youtube Subtitle: unable to update My Vocabulary", error);
       if (activeElement) {
-        wordButton.title = "Could not save. Click to try again.";
+        wordButton.textContent = "!";
+        wordButton.title = "Could not save. Tap to try again.";
         wordButton.setAttribute("aria-label", wordButton.title);
       }
     } finally {
@@ -540,6 +542,11 @@
     return null;
   }
 
+  function wordButtonAtPoint(target, x, y) {
+    return activeElement && wordButton && !wordButton.hidden &&
+      (wordButton.contains(target) || pointInside(wordButton, x, y));
+  }
+
   function blockReviewTouch(event, touch) {
     // Let a directly targeted review panel keep its native scroll gesture.
     if (touch.control !== "panel" || touch.covered) event.preventDefault();
@@ -547,8 +554,23 @@
   }
 
   function handleTouchStart(event, x, y) {
-    if (event.target === wordButton) return;
     if (blockedTouch?.control && !blockedTouch.released && isBlockedTouch(x, y)) {
+      blockReviewTouch(event, blockedTouch);
+      return;
+    }
+    if (wordButtonAtPoint(event.target, x, y)) {
+      // A new button can appear under the finger that selected the word.
+      // Only a separate press after release arms a vocabulary change.
+      if (touchSelection && !wordButtonArmed && blockedTouch && !blockedTouch.released) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        return;
+      }
+      blockedTouch = { control: "word", element: wordButton, x, y,
+        until: Date.now() + 900, released: false, cancelled: false };
+      wordButtonArmed = true;
+      clearTimeout(hideTimer);
+      hideTimer = null;
       blockReviewTouch(event, blockedTouch);
       return;
     }
@@ -612,13 +634,16 @@
       if (touch.released && !isBlockedTouch(x, y)) return;
       event.preventDefault();
       event.stopImmediatePropagation();
-      const activate = !touch.released && !touch.cancelled && !review.hidden && pointInside(touch.element, x, y);
+      const visible = touch.control === "word" ? activeElement && !wordButton.hidden : review && !review.hidden;
+      const activate = !touch.released && !touch.cancelled && visible && pointInside(touch.element, x, y);
       finishReviewDrag(touch);
       touch.released = true;
       touch.clickX = x;
       touch.clickY = y;
       touch.until = Date.now() + 900;
-      if (activate && touch.control === "toggle") {
+      if (activate && touch.control === "word") {
+        void changeActiveWord(event);
+      } else if (activate && touch.control === "toggle") {
         if (reviewedCaption) closeReview();
         else openReview();
       } else if (activate && touch.control === "close" && reviewedCaption) {
@@ -627,11 +652,13 @@
       }
       return;
     }
-    if (isBlockedTouch(x, y)) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      touch.released = true;
-    }
+    if (touch.released && !isBlockedTouch(x, y)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    touch.released = true;
+    touch.clickX = x;
+    touch.clickY = y;
+    touch.until = Date.now() + 900;
   }
 
   document.addEventListener("mouseover", (event) => {
@@ -646,10 +673,12 @@
 
   window.addEventListener("pointerdown", (event) => {
     if (event.pointerType !== "touch") {
-      if (event.button !== 0 || reviewControlAtPoint(event.target, event.clientX, event.clientY)?.control !== "toggle") return;
+      if (event.button !== 0 || (!wordButtonAtPoint(event.target, event.clientX, event.clientY) &&
+          reviewControlAtPoint(event.target, event.clientX, event.clientY)?.control !== "toggle")) return;
       handleTouchStart(event, event.clientX, event.clientY);
       blockedTouch.mouse = true;
-      reviewToggle.focus();
+      if (blockedTouch.control === "toggle") reviewToggle.focus();
+      else wordButton.focus();
       return;
     }
     handleTouchStart(event, event.clientX, event.clientY);
@@ -691,8 +720,13 @@
   }
 
   window.addEventListener("click", (event) => {
+    if (event.detail !== 0 && blockedTouch?.control === "word" && isBlockedTouch(event.clientX, event.clientY)) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
     if (event.target === wordButton) {
-      if (blockedTouch && Date.now() <= blockedTouch.until && !wordButtonArmed) {
+      if (event.detail !== 0 && touchSelection && !wordButtonArmed) {
         event.preventDefault();
         event.stopImmediatePropagation();
         blockedTouch = null;

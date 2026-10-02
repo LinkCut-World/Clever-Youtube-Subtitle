@@ -28,6 +28,8 @@ After captions move on, a small **↶ Previous caption** button appears at the t
 
 On a touch screen, tap and release **Previous caption** to open it. Drag the text area to scroll a long caption. The review buttons work even when YouTube's player controls cover their touch area.
 
+Drag the **Previous caption** button with your mouse or finger to move it. When you release it, the button moves to the closer left or right edge of the video and keeps its height. Dragging does not open or close the caption. The panel follows the button and opens above it when there is more room there. The position stays within the video when its size changes.
+
 The previous caption stays open while you update My Vocabulary. Click **Continue playback**, click **Previous caption** again, or press **Esc** when you are ready to continue. If the video was already paused, the closing button says **Close** and keeps it paused.
 
 The extension remembers the last distinct caption it saw on the current video. Line wrapping and words gradually added to a caption do not replace that history. Seeking, changing videos, or turning off CC clears it.
@@ -69,6 +71,8 @@ You can also tap **Previous caption** to pause and review the last caption, then
 ## How words match
 
 Matching ignores capital letters and marks at the start or end of a word. The extension also checks the sentence to find a word's base form. For example, saving `like` can hide `likes`, `liked`, and `liking`. The button shows the word that will be saved or removed.
+
+Caption line breaks, separate text segments, and trailing spaces keep this matching. For example, `it gives you 1 plus 4` uses `give`, even if the caption ends with a space.
 
 The bundled [wink-nlp](https://github.com/winkjs/wink-nlp) model runs in your browser. It can make mistakes when a word has more than one meaning or when a caption is too short. You can edit My Vocabulary at any time.
 

@@ -29,6 +29,8 @@
   let reviewCaption;
   let reviewClose;
   let reviewRevision = -1;
+  let reviewPosition = { side: "left", verticalRatio: 0 };
+  let reviewResizeObserver;
   let trackedVideo = null;
   let resumeVideo = null;
   let staleCaptionKey = null;
@@ -70,6 +72,7 @@
     currentCaption = null;
     previousCaption = null;
     if (review) review.hidden = true;
+    if (blockedTouch?.drag) finishReviewDrag(blockedTouch, true);
   }
 
   function onVideoPlay() {
@@ -110,6 +113,88 @@
     reviewPanel.hidden = false;
     reviewToggle.setAttribute("aria-expanded", "true");
     renderReviewCaption();
+    positionReview();
+  }
+
+  function reviewBounds() {
+    const host = review?.parentElement;
+    if (!host) return null;
+    const rect = host.getBoundingClientRect();
+    const button = reviewToggle.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0 || button.width <= 0 || button.height <= 0) return null;
+    // Scale coordinates back into the player's CSS pixels if it is transformed.
+    const width = host.clientWidth || rect.width;
+    const height = host.clientHeight || rect.height;
+    return { rect, width, height, scaleX: rect.width / width, scaleY: rect.height / height,
+      buttonWidth: button.width * width / rect.width, buttonHeight: button.height * height / rect.height,
+      inset: Math.min(12, width / 4, height / 4) };
+  }
+
+  function positionReview(freePosition = null) {
+    if (!review || review.hidden) return;
+    // Caption updates and resize callbacks must not undo an ongoing drag.
+    freePosition ||= blockedTouch?.drag?.position;
+    const bounds = reviewBounds();
+    if (!bounds) return;
+    const { width, height, buttonWidth, buttonHeight, inset } = bounds;
+    const travel = Math.max(0, height - buttonHeight - inset * 2);
+    const top = Math.max(inset, Math.min(freePosition?.top ?? inset + travel * reviewPosition.verticalRatio, inset + travel));
+    const left = Math.max(inset, Math.min(freePosition?.left ?? (reviewPosition.side === "left" ? inset : width - buttonWidth - inset),
+      Math.max(inset, width - buttonWidth - inset)));
+    const side = freePosition ? (left + buttonWidth / 2 < width / 2 ? "left" : "right") : reviewPosition.side;
+    review.style.top = `${top}px`;
+    review.style.left = freePosition || side === "left" ? `${left}px` : "auto";
+    review.style.right = freePosition || side === "left" ? "auto" : `${inset}px`;
+    const panelWidth = Math.max(0, Math.min(520, width - inset * 2));
+    const panelLeft = Math.max(inset, Math.min(left, width - panelWidth - inset));
+    reviewPanel.style.width = `${panelWidth}px`;
+    reviewPanel.style.left = side === "left" ? `${panelLeft - left}px` : "auto";
+    reviewPanel.style.right = side === "right" ? `${left + buttonWidth - panelLeft - panelWidth}px` : "auto";
+    const below = Math.max(0, height - inset - top - buttonHeight - 8);
+    const above = Math.max(0, top - inset - 8);
+    const openAbove = below < Math.min(300, above);
+    reviewPanel.style.top = openAbove ? "auto" : "calc(100% + 8px)";
+    reviewPanel.style.bottom = openAbove ? "calc(100% + 8px)" : "auto";
+    reviewPanel.style.maxHeight = `${Math.min(300, openAbove ? above : below)}px`;
+    positionWordButton();
+  }
+
+  function beginReviewDrag(touch, x, y) {
+    const bounds = reviewBounds();
+    if (!bounds) return;
+    const button = reviewToggle.getBoundingClientRect();
+    touch.drag = { left: (button.left - bounds.rect.left) / bounds.scaleX,
+      top: (button.top - bounds.rect.top) / bounds.scaleY, bounds, moved: false };
+  }
+
+  function moveReviewDrag(touch, x, y) {
+    const drag = touch.drag;
+    if (!drag || !Number.isFinite(x) || !Number.isFinite(y)) return;
+    if (Math.hypot(x - touch.x, y - touch.y) > 10) drag.moved = true;
+    if (!drag.moved) return;
+    touch.cancelled = true;
+    review.classList.add("clever-subtitle-review-dragging");
+    drag.position = { left: drag.left + (x - touch.x) / drag.bounds.scaleX,
+      top: drag.top + (y - touch.y) / drag.bounds.scaleY };
+    positionReview(drag.position);
+  }
+
+  function finishReviewDrag(touch, cancelled = false) {
+    const drag = touch.drag;
+    if (!drag) return;
+    if (drag.moved) {
+      const bounds = reviewBounds();
+      if (bounds) {
+        const left = parseFloat(review.style.left);
+        const top = parseFloat(review.style.top);
+        reviewPosition = { side: left + bounds.buttonWidth / 2 < bounds.width / 2 ? "left" : "right",
+          verticalRatio: Math.max(0, Math.min(1, (top - bounds.inset) / Math.max(1, bounds.height - bounds.buttonHeight - bounds.inset * 2))) };
+      }
+    }
+    review.classList.remove("clever-subtitle-review-dragging");
+    touch.drag = null;
+    if (cancelled) touch.cancelled = true;
+    positionReview();
   }
 
   function ensureReview(host) {
@@ -121,7 +206,7 @@
       reviewToggle.type = "button";
       reviewToggle.className = "clever-subtitle-review-toggle";
       reviewToggle.textContent = "↶ Previous caption";
-      reviewToggle.title = "View the previous caption and pause the video";
+      reviewToggle.title = "View the previous caption. Drag to move.";
       reviewToggle.setAttribute("aria-expanded", "false");
       reviewToggle.setAttribute("aria-controls", "clever-subtitle-review-panel");
       reviewToggle.addEventListener("click", () => {
@@ -150,7 +235,14 @@
         review.addEventListener(type, (event) => event.stopPropagation());
       }
     }
-    if (review.parentElement !== host) host.appendChild(review);
+    if (review.parentElement !== host) {
+      host.appendChild(review);
+      if (typeof ResizeObserver !== "undefined") {
+        reviewResizeObserver ||= new ResizeObserver(() => positionReview());
+        reviewResizeObserver.disconnect();
+        reviewResizeObserver.observe(host);
+      }
+    }
   }
 
   function renderReviewCaption() {
@@ -183,6 +275,7 @@
     if (!previousCaption) return;
     ensureReview(host);
     review.hidden = false;
+    positionReview();
     renderReviewCaption();
   }
 
@@ -462,6 +555,7 @@
     const control = reviewControlAtPoint(event.target, x, y);
     if (control) {
       blockedTouch = { ...control, x, y, until: Date.now() + 900, released: false, cancelled: false };
+      if (control.control === "toggle") beginReviewDrag(blockedTouch, x, y);
       hideWordButton();
       blockReviewTouch(event, blockedTouch);
       return;
@@ -501,6 +595,7 @@
   function handleTouchMove(event, x, y) {
     const touch = blockedTouch;
     if (!touch?.control || touch.released) return;
+    moveReviewDrag(touch, x, y);
     if (Math.abs(x - touch.x) > 10 || Math.abs(y - touch.y) > 10) touch.cancelled = true;
     if (touch.control === "panel" && touch.covered && reviewedCaption) {
       reviewCaption.scrollTop += touch.lastY - y;
@@ -518,6 +613,7 @@
       event.preventDefault();
       event.stopImmediatePropagation();
       const activate = !touch.released && !touch.cancelled && !review.hidden && pointInside(touch.element, x, y);
+      finishReviewDrag(touch);
       touch.released = true;
       touch.clickX = x;
       touch.clickY = y;
@@ -549,7 +645,13 @@
   });
 
   window.addEventListener("pointerdown", (event) => {
-    if (event.pointerType !== "touch") return;
+    if (event.pointerType !== "touch") {
+      if (event.button !== 0 || reviewControlAtPoint(event.target, event.clientX, event.clientY)?.control !== "toggle") return;
+      handleTouchStart(event, event.clientX, event.clientY);
+      blockedTouch.mouse = true;
+      reviewToggle.focus();
+      return;
+    }
     handleTouchStart(event, event.clientX, event.clientY);
   }, true);
 
@@ -559,7 +661,7 @@
   }, { capture: true, passive: false });
 
   window.addEventListener("pointerup", (event) => {
-    if (event.pointerType === "touch") handleTouchEnd(event, event.clientX, event.clientY);
+    if (event.pointerType === "touch" || blockedTouch?.mouse) handleTouchEnd(event, event.clientX, event.clientY);
   }, true);
 
   window.addEventListener("touchend", (event) => {
@@ -568,17 +670,22 @@
   }, { capture: true, passive: false });
 
   window.addEventListener("pointermove", (event) => {
-    if (event.pointerType === "touch") handleTouchMove(event, event.clientX, event.clientY);
+    if (event.pointerType === "touch" || blockedTouch?.mouse) handleTouchMove(event, event.clientX, event.clientY);
   }, { capture: true, passive: false });
   window.addEventListener("touchmove", (event) => {
     const touch = event.changedTouches[0];
     if (touch) handleTouchMove(event, touch.clientX, touch.clientY);
   }, { capture: true, passive: false });
   for (const type of ["pointercancel", "touchcancel"]) {
-    window.addEventListener(type, () => {
+    window.addEventListener(type, (event) => {
       if (blockedTouch?.control) {
+        finishReviewDrag(blockedTouch, true);
         blockedTouch.cancelled = true;
         blockedTouch.released = true;
+        const point = event.changedTouches?.[0] || event;
+        blockedTouch.clickX = point.clientX ?? blockedTouch.x;
+        blockedTouch.clickY = point.clientY ?? blockedTouch.y;
+        blockedTouch.until = Date.now() + 900;
       }
     }, true);
   }
@@ -592,7 +699,7 @@
       }
       return;
     }
-    if (!isBlockedTouch(event.clientX, event.clientY)) return;
+    if (event.detail === 0 || !isBlockedTouch(event.clientX, event.clientY)) return;
     event.preventDefault();
     event.stopImmediatePropagation();
     blockedTouch = null;
@@ -608,8 +715,14 @@
   });
 
   window.addEventListener("scroll", positionWordButton, true);
-  window.addEventListener("resize", positionWordButton);
-  document.addEventListener("fullscreenchange", hideWordButton);
+  window.addEventListener("resize", () => {
+    positionWordButton();
+    positionReview();
+  });
+  document.addEventListener("fullscreenchange", () => {
+    hideWordButton();
+    positionReview();
+  });
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape" || !reviewedCaption) return;
     event.preventDefault();

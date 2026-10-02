@@ -54,7 +54,49 @@ test("a contraction is hidden only when all of its meaningful pieces are known",
   assert.equal(captionParts("Don't stop.", new Set(["do", "not"]))[0].hidden, true);
 });
 
-test("the packaged browser model matches like to likes", () => {
+const reportedSentence = "when you pulg in negative 2, it gives you 1 plus 4 plus 9 plus 16 on and on.";
+
+function checkGivesMatching(api) {
+  const known = new Set(["give"]);
+  for (const sentence of [reportedSentence, reportedSentence.replace("pulg", "plug")]) {
+    for (const suffix of ["", " ", "  \n\t\u00a0"]) {
+      const text = sentence + suffix;
+      // YouTube can split the same line into separate DOM segments at any point.
+      for (const split of [0, sentence.indexOf("gives"), sentence.indexOf("gives") + 5, sentence.length]) {
+        const segments = [text.slice(0, split), text.slice(split)];
+        const parts = api.captionPartsForSegments(segments, known);
+        assert.deepEqual(Array.from(parts, (segment) => segment.map((part) => part.text).join("")), segments);
+        const gives = parts.flat().find((part) => part.text === "gives");
+        assert.equal(gives.hidden, true, `gives should match give with suffix ${JSON.stringify(suffix)}`);
+        assert.equal(gives.addWord, "give");
+        assert.equal(gives.removeWord, "give");
+        const visible = api.captionPartsForSegments(segments, new Set()).flat().find((part) => part.text === "gives");
+        assert.equal(visible.hidden, false);
+        assert.equal(visible.addWord, "give");
+      }
+    }
+  }
+}
+
+test("the reported gives example matches give across trailing whitespace and caption segments", () => {
+  checkGivesMatching({ captionPartsForSegments });
+  const parts = captionPartsForSegments(["I saw a", "saw. \n"], new Set(["see"]));
+  assert.deepEqual(parts.flat().filter((part) => part.hidden).map((part) => part.text), ["saw"]);
+  assert.equal(captionParts("Don't stop. ", new Set(["do"]))[0].hidden, false);
+});
+
+test("a token text mismatch still avoids assigning unrelated lemmas", () => {
+  const context = { CleverSubtitleNLP: {
+    its: { value: "value", precedingSpaces: "spaces", lemma: "lemma" },
+    readDoc: () => ({ tokens: () => ({ out: (key) => ({ value: ["takes"], spaces: [""], lemma: ["take"] })[key] }) })
+  } };
+  vm.runInNewContext(fs.readFileSync("word-utils.js", "utf8"), context);
+  const [part] = context.CleverSubtitleWords.captionParts("gives ", new Set(["take"]));
+  assert.equal(part.hidden, false);
+  assert.equal(part.addWord, "gives");
+});
+
+test("the packaged browser model matches likes and the reported gives example", () => {
   const context = { atob, Uint8Array, ArrayBuffer, DataView };
   context.globalThis = context;
   vm.runInNewContext(fs.readFileSync("lemma-bundle.js", "utf8"), context);
@@ -65,4 +107,5 @@ test("the packaged browser model matches like to likes", () => {
   assert.equal(parts[2].text, "likes");
   assert.equal(parts[2].hidden, true);
   assert.equal(parts[4].hidden, false);
+  checkGivesMatching(context.CleverSubtitleWords);
 });

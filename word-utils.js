@@ -54,9 +54,11 @@
       const spaces = tokens.out(nlp.its.precedingSpaces);
       const lemmas = tokens.out(nlp.its.lemma);
 
-      // Only use model offsets if its tokens reconstruct the exact caption.
-      // Otherwise the exact-word check below remains safe.
-      if (values.map((value, index) => spaces[index] + value).join("") === combined) {
+      // The tokenizer keeps preceding spaces but omits trailing whitespace.
+      // Accept that suffix without discarding every contextual lemma in the line.
+      // Any other mismatch still falls back to exact-word matching safely.
+      const reconstructed = values.map((value, index) => spaces[index] + value).join("");
+      if (combined.startsWith(reconstructed) && /^\s*$/u.test(combined.slice(reconstructed.length))) {
         let offset = 0;
         let wordIndex = 0;
         for (let index = 0; index < values.length; index++) {

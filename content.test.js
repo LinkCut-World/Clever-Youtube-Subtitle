@@ -393,6 +393,7 @@ function createPlayer({ paused = false, knownWords = [] } = {}) {
   let onMutation;
   let onStorageChanged;
   let savedWords = knownWords;
+  let onPlayerResize;
   const context = {
     CleverSubtitleWords: words,
     Node: { ELEMENT_NODE: 1 },
@@ -444,6 +445,11 @@ function createPlayer({ paused = false, knownWords = [] } = {}) {
     MutationObserver: class {
       constructor(callback) { onMutation = callback; }
       observe() {}
+    },
+    ResizeObserver: class {
+      constructor(callback) { onPlayerResize = callback; }
+      disconnect() {}
+      observe() {}
     }
   };
   context.globalThis = context;
@@ -463,6 +469,7 @@ function createPlayer({ paused = false, knownWords = [] } = {}) {
   return {
     body, player, video, cc, captions, context, documentListeners, windowListeners, setCaption, mutate,
     savedWords: () => Array.from(savedWords),
+    resizePlayer: () => onPlayerResize?.(),
     setKnownWords(next) { savedWords = next; onStorageChanged({ knownWords: {} }, "local"); },
     find: (selector) => body.querySelector(selector),
     hover: (element) => documentListeners.mouseover({ target: element }),
@@ -470,16 +477,143 @@ function createPlayer({ paused = false, knownWords = [] } = {}) {
   };
 }
 
-function emitTouch(app, type, target, x, y) {
+function emitTouch(app, type, target, x, y, extra = {}) {
   const result = { prevented: false, blocked: false };
   app.windowListeners[type]({
     pointerType: "touch", target, clientX: x, clientY: y,
     changedTouches: [{ clientX: x, clientY: y }],
+    ...extra,
     preventDefault() { result.prevented = true; },
     stopImmediatePropagation() { result.blocked = true; }
   });
   return result;
 }
+
+function movableReview(app, { scale = 1 } = {}) {
+  const geometry = { left: 80, top: 60, width: 640, height: 420, scale };
+  const review = app.find(".clever-subtitle-review");
+  const toggle = app.find(".clever-subtitle-review-toggle");
+  const panel = app.find(".clever-subtitle-review-panel");
+  const rect = (left, top, width, height) => ({ left, top, right: left + width, bottom: top + height, width, height });
+  app.player.getBoundingClientRect = () => rect(geometry.left, geometry.top,
+    geometry.width * geometry.scale, geometry.height * geometry.scale);
+  Object.defineProperty(app.player, "clientWidth", { get: () => geometry.width });
+  Object.defineProperty(app.player, "clientHeight", { get: () => geometry.height });
+  toggle.getBoundingClientRect = () => {
+    const left = review.style.left === "auto"
+      ? geometry.width - 160 - parseFloat(review.style.right)
+      : parseFloat(review.style.left || "12");
+    return rect(geometry.left + left * geometry.scale,
+      geometry.top + parseFloat(review.style.top || "12") * geometry.scale, 160 * geometry.scale, 44 * geometry.scale);
+  };
+  app.resizePlayer();
+  const center = () => {
+    const bounds = toggle.getBoundingClientRect();
+    return [bounds.left + bounds.width / 2, bounds.top + bounds.height / 2];
+  };
+  return { review, toggle, panel, geometry, center };
+}
+
+test("Previous caption drags through covered mouse and touch targets and snaps to either player edge", () => {
+  for (const paths of [["pointer"], ["touch"], ["pointer", "touch"], ["mouse"]]) {
+    const app = createPlayer();
+    app.setCaption("First sentence");
+    app.setCaption("Second sentence");
+    const { review, toggle, panel, center } = movableReview(app);
+    const emit = (phase, x, y) => {
+      for (const path of paths) {
+        const type = path === "touch" ? { start: "touchstart", move: "touchmove", end: "touchend" }[phase]
+          : { start: "pointerdown", move: "pointermove", end: "pointerup" }[phase];
+        assert.equal(emitTouch(app, type, app.player, x, y,
+          { pointerType: path === "mouse" ? "mouse" : "touch", button: 0 }).blocked, true);
+      }
+    };
+    const [x, y] = center();
+    emit("start", x, y);
+    emit("move", x + 360, y + 130);
+    assert.equal(review.classList.contains("clever-subtitle-review-dragging"), true);
+    assert.equal(panel.hidden, true);
+    app.setCaption("Third sentence");
+    assert.equal(review.style.left, "372px", "A caption update must not undo an active drag");
+    emit("end", x + 360, y + 130);
+    assert.equal(review.style.left, "auto");
+    assert.equal(review.style.right, "12px");
+    assert.equal(review.style.top, "142px");
+    assert.equal(review.classList.contains("clever-subtitle-review-dragging"), false);
+    assert.equal(emitTouch(app, "click", toggle, x + 360, y + 130).blocked, true);
+    const [rightX, rightY] = center();
+    emit("start", rightX, rightY);
+    emit("move", rightX - 410, rightY - 90);
+    emit("end", rightX - 410, rightY - 90);
+    assert.equal(review.style.left, "12px");
+    assert.equal(review.style.right, "auto");
+    assert.ok(Math.abs(parseFloat(review.style.top) - 52) < 0.001);
+    assert.equal(panel.hidden, true);
+    assert.equal(app.video.pauseCalls, 0, "Moving the button must not open review or affect playback");
+    assert.equal(app.video.playCalls, 0);
+  }
+});
+
+test("small mouse movements still open review once, cancelled drags stay closed, and keyboard clicks remain available", () => {
+  const app = createPlayer();
+  app.setCaption("First sentence");
+  app.setCaption("Second sentence");
+  const { review, toggle, panel, center } = movableReview(app);
+  let [x, y] = center();
+  const mouse = { pointerType: "mouse", button: 0 };
+  emitTouch(app, "pointerdown", toggle, x, y, mouse);
+  emitTouch(app, "pointermove", app.player, x + 3, y + 2, mouse);
+  emitTouch(app, "pointerup", app.player, x + 3, y + 2, mouse);
+  assert.equal(panel.hidden, false);
+  assert.equal(app.video.pauseCalls, 1);
+  assert.equal(emitTouch(app, "click", toggle, x + 3, y + 2, { detail: 1 }).blocked, true);
+  assert.equal(panel.hidden, false);
+  app.click(toggle);
+  [x, y] = center();
+  emitTouch(app, "pointerdown", app.player, x, y);
+  emitTouch(app, "pointermove", app.player, x + 400, y + 100);
+  emitTouch(app, "pointercancel", app.player, x + 400, y + 100);
+  assert.equal(review.style.right, "12px");
+  assert.equal(review.classList.contains("clever-subtitle-review-dragging"), false);
+  assert.equal(emitTouch(app, "click", toggle, x + 400, y + 100, { detail: 1 }).blocked, true);
+  assert.equal(panel.hidden, true);
+  assert.equal(emitTouch(app, "click", toggle, 0, 0, { detail: 0 }).blocked, false);
+  app.click(toggle);
+  assert.equal(panel.hidden, false, "A keyboard click opens the review after a drag");
+});
+
+test("dragging an open review stays paused and keeps the panel in a scaled or resized player", () => {
+  const app = createPlayer();
+  app.setCaption("First sentence");
+  app.setCaption("Second sentence");
+  const { review, toggle, panel, geometry, center } = movableReview(app, { scale: 0.5 });
+  app.click(toggle);
+  const [x, y] = center();
+  emitTouch(app, "touchstart", app.player, x, y);
+  emitTouch(app, "touchmove", app.player, x + 800, y + 800);
+  emitTouch(app, "touchend", app.player, x + 800, y + 800);
+  assert.equal(panel.hidden, false);
+  assert.equal(app.video.paused, true);
+  assert.equal(app.video.playCalls, 0);
+  assert.equal(review.style.right, "12px");
+  assert.equal(review.style.top, "364px");
+  assert.equal(panel.style.right, "0px");
+  assert.equal(panel.style.bottom, "calc(100% + 8px)");
+  assert.equal(panel.style.maxHeight, "300px");
+  geometry.width = 320;
+  geometry.height = 180;
+  geometry.scale = 1;
+  app.resizePlayer();
+  assert.equal(review.style.right, "12px");
+  assert.equal(review.style.top, "124px");
+  assert.equal(panel.style.width, "296px");
+  assert.equal(panel.style.maxHeight, "104px");
+  app.documentListeners.fullscreenchange();
+  assert.equal(review.style.top, "124px");
+  app.click(toggle);
+  app.setCaption("Third sentence");
+  assert.equal(review.style.right, "12px", "A new caption keeps the chosen edge and height");
+});
 
 test("covered review buttons open and close once across touch and pointer events", () => {
   for (const paths of [["pointer"], ["touch"], ["pointer", "touch"]]) {

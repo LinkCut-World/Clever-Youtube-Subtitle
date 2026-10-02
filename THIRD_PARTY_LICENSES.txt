@@ -1,3 +1,7 @@
+The generated gerund-bases.json data and the same table in lemma-bundle.js
+are derived from wink-eng-lite-web-model using wink-nlp. Their MIT notices
+are included below.
+
 ===== wink-nlp 2.4.0 =====
                            The MIT License
 

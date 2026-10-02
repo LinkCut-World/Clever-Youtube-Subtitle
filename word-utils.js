@@ -6,6 +6,8 @@
     (typeof module !== "undefined" && module.exports
       ? require("wink-nlp")(require("wink-eng-lite-web-model"))
       : null);
+  const gerundBases = root.CleverSubtitleGerunds ||
+    (typeof module !== "undefined" && module.exports ? require("./gerund-bases.json") : {});
 
   function normalizeWord(value) {
     return String(value)
@@ -22,6 +24,33 @@
       if (word) words.add(word);
     }
     return [...words].sort((a, b) => a.localeCompare(b, "en"));
+  }
+
+  function contextualLemma(index, values, tags, lemmas) {
+    const word = normalizeWord(values[index]);
+    const lemma = normalizeWord(lemmas[index]);
+    if (lemma !== word || !Object.hasOwn(gerundBases, word) ||
+        (tags[index] !== "NOUN" && tags[index] !== "PROPN")) return lemma;
+
+    // Some -ing verbs are tagged as nouns after a preposition or at the start
+    // of a clause. Recover only dictionary-listed forms in a gerund frame.
+    // An article or possessive before the word keeps the noun reading instead
+    // ("the building", "a meeting", "my understanding").
+    let previous = index - 1;
+    while (tags[previous] === "ADV" || (tags[previous] === "PART" && values[previous] === "not")) previous--;
+    const startsClause = previous < 0 || (tags[previous] === "PUNCT" && /^[.!?;:,(]$/u.test(values[previous]));
+    const followsPreposition = tags[previous] === "ADP";
+    const followsVerb = tags[previous] === "VERB";
+    if (!startsClause && !followsPreposition && !followsVerb) return lemma;
+    // Preserve proper names unless an initial -ing form takes an object.
+    if (tags[index] === "PROPN" && !startsClause) return lemma;
+
+    let next = index + 1;
+    while (tags[next] === "ADV" || tags[next] === "ADJ") next++;
+    if (["DET", "PRON", "NOUN", "PROPN", "NUM"].includes(tags[next])) return gerundBases[word];
+    if (tags[index] === "NOUN" && (followsPreposition || followsVerb) &&
+        (next >= values.length || tags[next] === "ADP" || tags[next] === "PUNCT")) return gerundBases[word];
+    return lemma;
   }
 
   function captionPartsForSegments(texts, knownWords) {
@@ -53,6 +82,7 @@
       const values = tokens.out(nlp.its.value);
       const spaces = tokens.out(nlp.its.precedingSpaces);
       const lemmas = tokens.out(nlp.its.lemma);
+      const tags = tokens.out(nlp.its.pos) || [];
 
       // The tokenizer keeps preceding spaces but omits trailing whitespace.
       // Accept that suffix without discarding every contextual lemma in the line.
@@ -70,7 +100,7 @@
           while (wordIndex < wordParts.length && wordParts[wordIndex].end <= tokenStart) wordIndex++;
           const wordPart = wordParts[wordIndex];
           if (wordPart && tokenStart >= wordPart.start && tokenEnd <= wordPart.end) {
-            const lemma = normalizeWord(lemmas[index]);
+            const lemma = contextualLemma(index, values, tags, lemmas);
             if (lemma) wordPart.lemmas.push(lemma);
           }
         }

@@ -76,8 +76,6 @@ Matching ignores capital letters and marks at the start or end of a word. The ex
 
 Caption line breaks, separate text segments, and trailing spaces keep this matching. For example, `it gives you 1 plus 4` uses `give`, even if the caption ends with a space.
 
-An extra dictionary check handles common **-ing** verbs that the model reads as nouns in a sentence. For example, `on understanding what happens` uses `understand`, and `Building a house` uses `build`. It checks the words around the form before changing it. Independent nouns such as `my understanding`, `the building`, and `a meeting` keep their own base forms. This check can also make mistakes in ambiguous sentences.
-
 The bundled [wink-nlp](https://github.com/winkjs/wink-nlp) model runs in your browser. It can make mistakes when a word has more than one meaning or when a caption is too short. You can edit My Vocabulary at any time.
 
 ## Privacy
@@ -86,7 +84,7 @@ My Vocabulary is saved in local extension storage. Git sync is optional. When yo
 
 ## Build and test
 
-Run `npm ci` and `npm test` for local tests. Git must be installed to run the sync integration tests, which use a temporary local Git HTTP server. Run `npm run build` if you change `lemma-entry.js`, `build-gerunds.cjs`, or the word-model packages. This regenerates `gerund-bases.json` from the pinned wink dictionary and includes it in the browser bundle. Run `npm run build:git` if you change `git-entry.js` or its packages. Commit the generated data, bundles, and license notices so the extension remains ready to install.
+Run `npm ci` and `npm test` for local tests. Git must be installed to run the sync integration tests, which use a temporary local Git HTTP server. Run `npm run build` if you change `lemma-entry.js` or the word-model packages. Run `npm run build:git` if you change `git-entry.js` or its packages. Commit the generated bundles and license notices so the extension remains ready to install.
 
 On Windows, run `./package-kiwi.ps1` after committing a release to build its Kiwi ZIP. To allow only your Git host, use `./package-kiwi.ps1 -GitServers 'https://git.example.com/*'`. This script packages committed runtime files and changes only the ZIP's host-permission declaration; it does not include local vocabulary or credentials.
 

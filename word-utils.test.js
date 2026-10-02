@@ -96,62 +96,6 @@ test("a token text mismatch still avoids assigning unrelated lemmas", () => {
   assert.equal(part.addWord, "gives");
 });
 
-function checkGerundMatching(api) {
-  const sentence = "his main focus was on understanding what happens when you plug in a complex value for s.";
-  const cases = [
-    [sentence, "understanding", "understand"],
-    ["Understanding the problem takes time.", "Understanding", "understand"],
-    ["Her focus is on understanding complex numbers.", "understanding", "understand"],
-    ["By not understanding what happens, you fail.", "understanding", "understand"],
-    ["He enjoys swimming in the lake.", "swimming", "swim"],
-    ["They are talking about meeting again.", "meeting", "meet"],
-    ["Building a house takes time.", "Building", "build"],
-    ["They talked about running a business.", "running", "run"]
-  ];
-  for (const [text, surface, base] of cases) {
-    const start = text.indexOf(surface);
-    for (const suffix of ["", " \n"]) {
-      const segments = [text.slice(0, start), text.slice(start) + suffix];
-      const parts = api.captionPartsForSegments(segments, new Set([base]));
-      assert.deepEqual(Array.from(parts, (segment) => segment.map((part) => part.text).join("")), segments);
-      const part = parts.flat().find((part) => part.text === surface);
-      assert.equal(part.hidden, true, text);
-      assert.equal(part.removeWord, base, text);
-      const visible = api.captionParts(text + suffix, new Set()).find((part) => part.text === surface);
-      assert.equal(visible.addWord, base, text);
-    }
-  }
-  const exact = api.captionParts(sentence, new Set(["understanding", "understand"]))
-    .find((part) => part.text === "understanding");
-  assert.equal(exact.removeWord, "understanding", "The minus button must still name an actual saved entry");
-}
-
-function checkIndependentNouns(api) {
-  for (const [text, surface, base] of [
-    ["My understanding is different.", "understanding", "understand"],
-    ["an understanding of science", "understanding", "understand"],
-    ["She has an understanding manner.", "understanding", "understand"],
-    ["The building is tall.", "building", "build"],
-    ["We went to a meeting yesterday.", "meeting", "meet"],
-    ["The king is here.", "king", "k"],
-    ["That thing is strange.", "thing", "th"],
-    ["I am looking at the ceiling.", "ceiling", "ceil"],
-    ["This is an interesting book.", "interesting", "interest"]
-  ]) {
-    const part = api.captionParts(text, new Set([base])).find((part) => normalizeWord(part.text) === surface);
-    assert.equal(part.hidden, false, text);
-    assert.equal(part.addWord, surface, text);
-  }
-}
-
-test("dictionary-checked gerunds match their verbs even when the contextual model tags them as nouns", () => {
-  checkGerundMatching({ captionParts, captionPartsForSegments });
-});
-
-test("independent nouns, adjectives, and words merely ending in ing keep their own lemmas", () => {
-  checkIndependentNouns({ captionParts });
-});
-
 test("the packaged browser model matches likes and the reported gives example", () => {
   const context = { atob, Uint8Array, ArrayBuffer, DataView };
   context.globalThis = context;
@@ -164,6 +108,4 @@ test("the packaged browser model matches likes and the reported gives example", 
   assert.equal(parts[2].hidden, true);
   assert.equal(parts[4].hidden, false);
   checkGivesMatching(context.CleverSubtitleWords);
-  checkGerundMatching(context.CleverSubtitleWords);
-  checkIndependentNouns(context.CleverSubtitleWords);
 });

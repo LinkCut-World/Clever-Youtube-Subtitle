@@ -495,27 +495,6 @@ function emitTouch(app, type, target, x, y, extra = {}) {
   return result;
 }
 
-test("the reported understanding caption adds and removes understand through its word button", async () => {
-  const app = createPlayer();
-  const sentence = "his main focus was on understanding what happens when you plug in a complex value for s.";
-  const [segment] = app.setCaption(sentence);
-  const understanding = segment.querySelectorAll(".clever-subtitle-unknown")
-    .find((element) => element.textContent === "understanding");
-  app.hover(understanding);
-  const button = app.find(".clever-subtitle-word-button");
-  assert.equal(button.title, "Add “understand” to My Vocabulary");
-  await app.click(button);
-  assert.deepEqual(app.savedWords(), ["understand"]);
-  const known = segment.querySelector(".clever-subtitle-known");
-  assert.equal(known.textContent, "understanding");
-  assert.equal(segment.textContent, sentence);
-  app.hover(known);
-  assert.equal(button.title, "Remove “understand” from My Vocabulary");
-  await app.click(button);
-  assert.deepEqual(app.savedWords(), []);
-  assert.equal(segment.querySelector(".clever-subtitle-known"), null);
-});
-
 function movableReview(app, { scale = 1 } = {}) {
   const geometry = { left: 80, top: 60, width: 640, height: 420, scale };
   const review = app.find(".clever-subtitle-review");

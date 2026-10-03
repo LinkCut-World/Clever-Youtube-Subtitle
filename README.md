@@ -76,9 +76,11 @@ Matching ignores capital letters and marks at the start or end of a word. The ex
 
 Caption line breaks, separate text segments, and trailing spaces keep this matching. For example, `it gives you 1 plus 4` uses `give`, even if the caption ends with a space.
 
-The bundled [wink-nlp](https://github.com/winkjs/wink-nlp) model runs in your browser. It can make mistakes when a word has more than one meaning or when a caption is too short. You can edit My Vocabulary at any time.
+The bundled [MorphoDiTa](https://ufal.mff.cuni.cz/morphodita) English model runs locally in the extension's background worker. Open YouTube tabs share one model. It loads when a caption first needs it and can load again after the browser stops an idle worker. Loading can take a moment; a selected word shows **…** until its base form is ready. If the model cannot load, the extension still matches exact words.
 
-The extension uses the base forms returned by the model. It does not add its own grammar rules to change them. For example, the current model keeps `understanding` in `on understanding what happens`, so saving only `understand` does not hide that word in this sentence.
+The extension uses the original model's base forms. It does not add grammar rules or replace model results. In `his main focus was on understanding what happens…`, this model returns `understand`, so that saved word hides `understanding`. In `My understanding is different`, it keeps the noun `understanding`. The model can still make mistakes, especially with short captions. You can edit My Vocabulary at any time.
+
+The model file is about 5.4 MiB. The desktop browser experiment allocated about 84 MiB of WASM memory; this is not the browser's full process memory. The model and caption analysis do not use an external service.
 
 ## Privacy
 
@@ -86,10 +88,12 @@ My Vocabulary is saved in local extension storage. Git sync is optional. When yo
 
 ## Build and test
 
-Run `npm ci` and `npm test` for local tests. Git must be installed to run the sync integration tests, which use a temporary local Git HTTP server. Run `npm run build` if you change `lemma-entry.js` or the word-model packages. Run `npm run build:git` if you change `git-entry.js` or its packages. Commit the generated bundles and license notices so the extension remains ready to install.
+Run `npm ci`, `npm run build`, and `npm test` for local checks. Git must be installed to run the sync integration tests, which use a temporary local Git HTTP server. `npm run build` verifies the included MorphoDiTa runtime hashes and notices. Run `npm run build:git` if you change `git-entry.js` or its packages. Commit the runtime files and license notices so the extension remains ready to install.
+
+To rebuild the WASM engine, obtain MorphoDiTa source commit `d1617496b2ae7fcb031d5a2e38511d7401c74afc`, the official English WSJ 140407 no_negation model, and an activated Emscripten 3.1.73 SDK. Then run `./build-morphodita.ps1 -SourceRoot C:\path\to\morphodita -SdkRoot C:\path\to\emsdk -ModelPath C:\path\to\english-morphium-wsj-140407-no_negation.tagger`. Python is used by the build tool only. The installed extension runs WASM directly and does not need Python or a local service.
 
 On Windows, run `./package-kiwi.ps1` after committing a release to build its Kiwi ZIP. To allow only your Git host, use `./package-kiwi.ps1 -GitServers 'https://git.example.com/*'`. This script packages committed runtime files and changes only the ZIP's host-permission declaration; it does not include local vocabulary or credentials.
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE). The bundled word-model packages have their own MIT notices in [THIRD_PARTY_LICENSES.txt](THIRD_PARTY_LICENSES.txt). Git client and filesystem dependency notices are included in [GIT_THIRD_PARTY_LICENSES.txt](GIT_THIRD_PARTY_LICENSES.txt).
+The project's own code is licensed under the [MIT License](LICENSE). The bundled MorphoDiTa library is MPL 2.0, and its English model is CC BY-NC-SA 3.0 Unported. The model is provided for noncommercial use under that license. The complete installation package has these additional terms; it is not solely MIT. Full notices, attribution, and corresponding source links are in [THIRD_PARTY_LICENSES.txt](THIRD_PARTY_LICENSES.txt). Git client and filesystem dependency notices are included in [GIT_THIRD_PARTY_LICENSES.txt](GIT_THIRD_PARTY_LICENSES.txt).

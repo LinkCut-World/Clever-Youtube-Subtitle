@@ -21,11 +21,13 @@ $manifest.PSObject.Properties.Remove('optional_host_permissions')
 $manifest | Add-Member -NotePropertyName host_permissions -NotePropertyValue @($GitServers) -Force
 
 $files = @(
-  'manifest.json', 'lemma-bundle.js', 'word-utils.js', 'content.js', 'captions.css',
+  'manifest.json', 'nlp-client.js', 'nlp-service.js', 'morphodita', 'word-utils.js', 'content.js', 'captions.css',
   'popup.html', 'popup.css', 'popup.js', 'options.html', 'options.css', 'options.js',
   'vocabulary.js', 'background.js', 'sync-model.js', 'sync-codec.js', 'sync-git.js',
   'sync-access.js', 'git-bundle.js', 'LICENSE', 'THIRD_PARTY_LICENSES.txt',
-  'GIT_THIRD_PARTY_LICENSES.txt'
+  'GIT_THIRD_PARTY_LICENSES.txt', 'third-party/MorphoDiTa-MPL-2.0.txt',
+  'third-party/MorphoDiTa-Model-CC-BY-NC-SA-3.0.txt', 'third-party/MorphoDiTa-Model-README.txt',
+  'third-party/Emscripten-LICENSE.txt'
 )
 $outputDirectory = Join-Path $projectRoot 'dist'
 New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null

@@ -1,8 +1,13 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const fs = require("node:fs");
-const vm = require("node:vm");
-const { normalizeWord, parseWordList, captionParts, captionPartsForSegments } = require("./word-utils.js");
+const words = require("./word-utils.js");
+const { normalizeWord, parseWordList } = words;
+const originalModel = require("./nlp-test-helper.cjs");
+test.before(originalModel.loadEngine);
+function captionPartsForSegments(texts, known) {
+  return words.captionPartsForSegments(texts, known, originalModel.analyze(texts.join(" ")));
+}
+function captionParts(text, known) { return captionPartsForSegments([text], known)[0]; }
 
 test("word lists are normalized, deduplicated, and case insensitive", () => {
   assert.deepEqual(parseWordList("Hello, WORLD\nhello; It's"), ["hello", "it's", "world"]);
@@ -22,8 +27,10 @@ test("base words cover regular and irregular English inflections", () => {
   const parts = captionParts("He likes her. He liked going with children, feeling better.", known);
   assert.deepEqual(
     parts.filter((part) => part.hidden).map((part) => part.text),
-    ["He", "likes", "He", "liked", "going", "children,", "better."]
+    ["He", "likes", "He", "liked", "going", "children,"]
   );
+  // MorphoDiTa reads this adverb as better -> well, not the adjective good.
+  assert.equal(parts.find((part) => part.text === "better.").addWord, "well");
   assert.equal(captionParts("likeness", known)[0].hidden, false);
 });
 
@@ -86,26 +93,19 @@ test("the reported gives example matches give across trailing whitespace and cap
 });
 
 test("a token text mismatch still avoids assigning unrelated lemmas", () => {
-  const context = { CleverSubtitleNLP: {
-    its: { value: "value", precedingSpaces: "spaces", lemma: "lemma" },
-    readDoc: () => ({ tokens: () => ({ out: (key) => ({ value: ["takes"], spaces: [""], lemma: ["take"] })[key] }) })
-  } };
-  vm.runInNewContext(fs.readFileSync("word-utils.js", "utf8"), context);
-  const [part] = context.CleverSubtitleWords.captionParts("gives ", new Set(["take"]));
+  const [part] = words.captionParts("gives ", new Set(["take"]),
+    [{ form: "takes", lemma: "take", start: 0, end: 5 }]);
   assert.equal(part.hidden, false);
   assert.equal(part.addWord, "gives");
 });
 
 function checkUnchangedLemmas(api) {
-  const model = require("wink-nlp")(require("wink-eng-lite-web-model"));
   for (const text of [
     "his main focus was on understanding what happens when you plug in a complex value for s.",
     "My understanding is different.",
     "I am understanding this better."
   ]) {
-    const tokens = model.readDoc(text).tokens();
-    const index = tokens.out(model.its.value).indexOf("understanding");
-    const lemma = normalizeWord(tokens.itemAt(index).out(model.its.lemma));
+    const lemma = normalizeWord(originalModel.analyze(text).find((token) => token.form === "understanding").lemma);
     const part = api.captionParts(text, new Set(["understand"]))
       .find((part) => part.text === "understanding");
     assert.equal(part.addWord, lemma, "The adapter must not override the upstream linguistic result");
@@ -117,17 +117,13 @@ test("the understanding examples preserve the upstream model's lemmas", () => {
   checkUnchangedLemmas({ captionParts });
 });
 
-test("the packaged browser model matches likes and the reported gives example", () => {
-  const context = { atob, Uint8Array, ArrayBuffer, DataView };
-  context.globalThis = context;
-  vm.runInNewContext(fs.readFileSync("lemma-bundle.js", "utf8"), context);
-  vm.runInNewContext(fs.readFileSync("word-utils.js", "utf8"), context);
-  const parts = context.CleverSubtitleWords.captionParts("He likes her", new Set(["like"]));
+test("the packaged MorphoDiTa model matches likes and the reported gives example", () => {
+  const parts = captionParts("He likes her", new Set(["like"]));
   assert.equal(parts.map((part) => part.text).join(""), "He likes her");
   assert.equal(parts[0].hidden, false);
   assert.equal(parts[2].text, "likes");
   assert.equal(parts[2].hidden, true);
   assert.equal(parts[4].hidden, false);
-  checkGivesMatching(context.CleverSubtitleWords);
-  checkUnchangedLemmas(context.CleverSubtitleWords);
+  checkGivesMatching({ captionPartsForSegments });
+  checkUnchangedLemmas({ captionParts });
 });

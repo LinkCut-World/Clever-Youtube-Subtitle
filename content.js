@@ -4,12 +4,16 @@
   const STORAGE_KEY = "knownWords";
   const WORD_SELECTOR = ".ytp-caption-segment .clever-subtitle-unknown, .ytp-caption-segment .clever-subtitle-known, .clever-subtitle-review-caption .clever-subtitle-unknown, .clever-subtitle-review-caption .clever-subtitle-known";
   const { normalizeWord, captionPartsForSegments } = globalThis.CleverSubtitleWords;
+  const nlp = globalThis.CleverSubtitleNLP;
+  const pendingAnalysis = new Set();
   const originals = new WeakMap();
   let knownWords = new Set();
   let wordsRevision = 0;
   let analyzedContext = "";
   let analyzedRevision = -1;
   let analyzedParts = [];
+  let nlpRevision = 0;
+  let analyzedNlpRevision = -1;
   let wordButton;
   let activeElement;
   let hideTimer;
@@ -29,6 +33,7 @@
   let reviewCaption;
   let reviewClose;
   let reviewRevision = -1;
+  let reviewNlpRevision = -1;
   let reviewPosition = { side: "left", verticalRatio: 0 };
   let reviewResizeObserver;
   let trackedVideo = null;
@@ -246,10 +251,11 @@
   }
 
   function renderReviewCaption() {
-    if (!reviewedCaption || reviewRevision === wordsRevision) return;
-    const parts = captionPartsForSegments([reviewedCaption.text], knownWords)[0];
+    if (!reviewedCaption || (reviewRevision === wordsRevision && reviewNlpRevision === nlpRevision)) return;
+    const parts = partsForCaption([reviewedCaption.text])[0];
     updateSegment(reviewCaption, parts, reviewedCaption.text);
     reviewRevision = wordsRevision;
+    reviewNlpRevision = nlpRevision;
   }
 
   function updateCaptionHistory(texts) {
@@ -307,7 +313,7 @@
   async function changeActiveWord(event) {
     event.preventDefault();
     event.stopPropagation?.();
-    if (!activeElement || saving) return;
+    if (!activeElement || saving || activeElement.dataset.cleverPending === "true") return;
     // The tap that opened this button can also produce a click on the new button.
     // Wait for a separate touch on the button before changing stored words.
     if (touchSelection && !wordButtonArmed && event.detail !== 0) return;
@@ -383,8 +389,10 @@
     activeElement.classList.add("clever-subtitle-active");
     const word = element.dataset.cleverWord;
     const removing = element.classList.contains("clever-subtitle-known");
-    wordButton.textContent = removing ? "−" : "+";
-    wordButton.title = `${removing ? "Remove" : "Add"} “${word}” ${removing ? "from" : "to"} My Vocabulary`;
+    const pending = element.dataset.cleverPending === "true";
+    wordButton.disabled = pending;
+    wordButton.textContent = pending ? "…" : removing ? "−" : "+";
+    wordButton.title = pending ? "Reading word…" : `${removing ? "Remove" : "Add"} “${word}” ${removing ? "from" : "to"} My Vocabulary`;
     wordButton.setAttribute("aria-label", wordButton.title);
     wordButton.hidden = false;
     positionWordButton();
@@ -400,6 +408,7 @@
     // YouTube caption. This also lets us detect when YouTube replaces a line.
     if (previous?.original === current &&
         previous.wordsRevision === wordsRevision &&
+        previous.nlpRevision === nlpRevision &&
         previous.context === context &&
         existingCount === wrappedCount) return;
 
@@ -412,12 +421,14 @@
           const span = document.createElement("span");
           span.className = "clever-subtitle-known";
           span.dataset.cleverWord = part.removeWord;
+          span.dataset.cleverPending = String(Boolean(part.pending));
           span.textContent = part.text;
           fragment.appendChild(span);
         } else if (part.addWord) {
           const span = document.createElement("span");
           span.className = "clever-subtitle-unknown";
           span.dataset.cleverWord = part.addWord;
+          span.dataset.cleverPending = String(Boolean(part.pending));
           span.textContent = part.text;
           fragment.appendChild(span);
         } else {
@@ -426,7 +437,28 @@
       }
       segment.replaceChildren(fragment);
     }
-    originals.set(segment, { original: current, wordsRevision, context });
+    originals.set(segment, { original: current, wordsRevision, nlpRevision, context });
+  }
+
+  function partsForCaption(texts) {
+    const text = texts.join(" ");
+    const tokens = nlp.peek(text);
+    const pending = Boolean(text.trim() && tokens === undefined);
+    if (pending && !pendingAnalysis.has(text)) {
+      pendingAnalysis.add(text);
+      nlp.analyze(text).then(() => {
+        // Always render the current DOM, never nodes captured by an old request.
+        const currentText = [...document.querySelectorAll(".ytp-caption-segment")]
+          .map((segment) => segment.textContent || "").join(" ");
+        if (text === currentText || text === reviewedCaption?.text) {
+          nlpRevision++;
+          updateCaptions();
+        }
+      }).finally(() => pendingAnalysis.delete(text));
+    }
+    const parts = captionPartsForSegments(texts, knownWords, tokens);
+    if (pending) for (const segment of parts) for (const part of segment) part.pending = true;
+    return parts;
   }
 
   function updateCaptions() {
@@ -436,6 +468,7 @@
       captionText: activeCaptionText,
       text: activeElement.textContent,
       word: activeElement.dataset.cleverWord,
+      pending: activeElement.dataset.cleverPending === "true",
       known: activeElement.classList.contains("clever-subtitle-known"),
       rect: activeRect,
       touch: touchSelection,
@@ -443,10 +476,11 @@
     };
     const texts = segments.map((segment) => segment.textContent || "");
     const context = JSON.stringify(texts);
-    if (context !== analyzedContext || wordsRevision !== analyzedRevision) {
+    if (context !== analyzedContext || wordsRevision !== analyzedRevision || analyzedNlpRevision !== nlpRevision) {
       analyzedContext = context;
       analyzedRevision = wordsRevision;
-      analyzedParts = captionPartsForSegments(texts, knownWords);
+      analyzedNlpRevision = nlpRevision;
+      analyzedParts = partsForCaption(texts);
     }
     segments.forEach((segment, index) => updateSegment(segment, analyzedParts[index], context));
     updateCaptionHistory(texts);
@@ -466,8 +500,8 @@
     const candidates = [...document.querySelectorAll(WORD_SELECTOR)].filter((element) =>
       selectedSegments.some((segment) => segment.contains(element)) &&
       element.textContent === selection.text &&
-      element.dataset.cleverWord === selection.word &&
-      element.classList.contains("clever-subtitle-known") === selection.known
+      (selection.pending || (element.dataset.cleverWord === selection.word &&
+      element.classList.contains("clever-subtitle-known") === selection.known))
     );
     candidates.sort((a, b) => {
       const point = selection.rect;

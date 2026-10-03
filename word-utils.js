@@ -2,11 +2,6 @@
 (function (root) {
   "use strict";
 
-  const nlp = root.CleverSubtitleNLP ||
-    (typeof module !== "undefined" && module.exports
-      ? require("wink-nlp")(require("wink-eng-lite-web-model"))
-      : null);
-
   function normalizeWord(value) {
     return String(value)
       .normalize("NFKC")
@@ -24,7 +19,7 @@
     return [...words].sort((a, b) => a.localeCompare(b, "en"));
   }
 
-  function captionPartsForSegments(texts, knownWords) {
+  function captionPartsForSegments(texts, knownWords, annotations = []) {
     const partsBySegment = [];
     const wordParts = [];
     let combined = "";
@@ -48,29 +43,28 @@
 
     if (wordParts.length === 0) return partsBySegment;
 
-    if (nlp) {
-      const tokens = nlp.readDoc(combined).tokens();
-      const values = tokens.out(nlp.its.value);
-      const spaces = tokens.out(nlp.its.precedingSpaces);
-      const lemmas = tokens.out(nlp.its.lemma);
-
-      // The tokenizer keeps preceding spaces but omits trailing whitespace.
-      // Accept that suffix without discarding every contextual lemma in the line.
-      // Any other mismatch still falls back to exact-word matching safely.
-      const reconstructed = values.map((value, index) => spaces[index] + value).join("");
-      if (combined.startsWith(reconstructed) && /^\s*$/u.test(combined.slice(reconstructed.length))) {
-        let offset = 0;
+    if (Array.isArray(annotations) && annotations.length) {
+      // Use the original model's UTF-16 ranges. Reject mismatched annotations
+      // rather than assigning an old caption's lemmas to new words.
+      let cursor = 0;
+      const valid = annotations.every((token) => {
+        const matches = Number.isInteger(token.start) && Number.isInteger(token.end) &&
+          token.start >= cursor && token.end > token.start && token.end <= combined.length &&
+          combined.slice(token.start, token.end) === token.form &&
+          /^\s*$/u.test(combined.slice(cursor, token.start));
+        cursor = token.end;
+        return matches;
+      }) && /^\s*$/u.test(combined.slice(cursor));
+      if (valid) {
         let wordIndex = 0;
-        for (let index = 0; index < values.length; index++) {
-          offset += spaces[index].length;
-          const tokenStart = offset;
-          const tokenEnd = tokenStart + values[index].length;
-          offset = tokenEnd;
-          if (!/[\p{L}\p{N}]/u.test(values[index])) continue;
+        for (const token of annotations) {
+          const tokenStart = token.start;
+          const tokenEnd = token.end;
+          if (!/[\p{L}\p{N}]/u.test(token.form)) continue;
           while (wordIndex < wordParts.length && wordParts[wordIndex].end <= tokenStart) wordIndex++;
           const wordPart = wordParts[wordIndex];
           if (wordPart && tokenStart >= wordPart.start && tokenEnd <= wordPart.end) {
-            const lemma = normalizeWord(lemmas[index]);
+            const lemma = normalizeWord(token.lemma);
             if (lemma) wordPart.lemmas.push(lemma);
           }
         }
@@ -95,8 +89,8 @@
     return partsBySegment;
   }
 
-  function captionParts(text, knownWords) {
-    return captionPartsForSegments([text], knownWords)[0];
+  function captionParts(text, knownWords, annotations) {
+    return captionPartsForSegments([text], knownWords, annotations)[0];
   }
 
   const api = { normalizeWord, parseWordList, captionPartsForSegments, captionParts };

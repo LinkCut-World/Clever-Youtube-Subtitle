@@ -1,3 +1,4 @@
 node_modules/
 shanbay-show-sentence-known-words.txt
 dist/
+experiments/

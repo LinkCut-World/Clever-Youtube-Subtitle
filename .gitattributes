@@ -1,0 +1,5 @@
+# Preserve compiler output bytes and the upstream notices.
+morphodita/morphodita.js -text -whitespace
+*.wasm -text
+*.tagger -text
+third-party/* -whitespace

@@ -3,6 +3,9 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
 const words = require("./word-utils.js");
+const originalModel = require("./nlp-test-helper.cjs");
+test.before(originalModel.loadEngine);
+const cachedNLP = { peek: originalModel.analyze };
 
 class FakeText {
   constructor(text) {
@@ -132,6 +135,7 @@ test("caption words keep spacing and can be added or removed from the hover butt
   const body = new FakeElement();
   const context = {
     CleverSubtitleWords: words,
+    CleverSubtitleNLP: cachedNLP,
     Node: { ELEMENT_NODE: 1 },
     setTimeout,
     clearTimeout,
@@ -221,18 +225,18 @@ test("caption words keep spacing and can be added or removed from the hover butt
   segment.textContent = "saw.";
   savedWords = ["see"];
   onStorageChanged({ knownWords: {} }, "local");
-  assert.deepEqual(hidden(), ["saw."]);
+  assert.deepEqual(hidden(), []);
 
-  const preceding = new FakeElement("a");
+  const preceding = new FakeElement("I");
   preceding.className = "ytp-caption-segment";
   segments.unshift(preceding);
   onMutation([{ target: preceding, addedNodes: [preceding] }]);
   assert.equal(segment.textContent, "saw.");
-  assert.deepEqual(hidden(), []);
+  assert.deepEqual(hidden(), ["saw."]);
 
   segments.shift();
   onMutation([{ target: segment, addedNodes: [], removedNodes: [preceding] }]);
-  assert.deepEqual(hidden(), ["saw."]);
+  assert.deepEqual(hidden(), []);
 
   segment.textContent = "He likes her";
   savedWords = ["existing"];
@@ -365,7 +369,7 @@ test("caption words keep spacing and can be added or removed from the hover butt
   assert.equal(button.hidden, true);
 });
 
-function createPlayer({ paused = false, knownWords = [] } = {}) {
+function createPlayer({ paused = false, knownWords = [], nlp = cachedNLP } = {}) {
   const body = new FakeElement();
   const player = new FakeElement();
   player.className = "html5-video-player";
@@ -402,6 +406,7 @@ function createPlayer({ paused = false, knownWords = [] } = {}) {
   let onPlayerResize;
   const context = {
     CleverSubtitleWords: words,
+    CleverSubtitleNLP: nlp,
     Node: { ELEMENT_NODE: 1 },
     setTimeout,
     clearTimeout,
@@ -1103,6 +1108,59 @@ test("manual playback dismisses review without issuing another play request", ()
   app.video.listeners.play();
   assert.equal(app.find(".clever-subtitle-review-panel").hidden, true);
   assert.equal(app.video.playCalls, 0);
+});
+
+test("an asynchronous lemma replaces pending spans and keeps the selected word actionable", async () => {
+  const { createClient } = require("./nlp-client.js");
+  let release;
+  const nlp = createClient(async ({ text }) => {
+    await new Promise((resolve) => { release = resolve; });
+    return { ok: true, tokens: originalModel.analyze(text) };
+  });
+  const app = createPlayer({ knownWords: ["understand"], nlp });
+  const text = "his main focus was on understanding what happens when you plug in a complex value for s.";
+  app.setCaption(text);
+  const pending = app.captions.querySelectorAll(".clever-subtitle-unknown").find((word) => word.textContent === "understanding");
+  app.documentListeners.mouseover({ target: pending });
+  const button = app.find(".clever-subtitle-word-button");
+  assert.equal(button.disabled, true);
+  assert.equal(button.textContent, "…");
+  await app.click(button);
+  assert.deepEqual(app.savedWords(), ["understand"], "Never save a surface form while its analysis is pending");
+  await new Promise(setImmediate);
+  release();
+  await new Promise(setImmediate);
+  assert.equal(app.captions.textContent, text);
+  assert.equal(app.captions.querySelector(".clever-subtitle-known").textContent, "understanding");
+  assert.equal(button.hidden, false);
+  assert.equal(button.disabled, false);
+  assert.equal(button.textContent, "−");
+  await app.click(button);
+  assert.deepEqual(app.savedWords(), []);
+});
+
+test("out-of-order analysis cannot overwrite a newer caption and still updates frozen review", async () => {
+  const { createClient } = require("./nlp-client.js");
+  const releases = new Map();
+  const nlp = createClient(async ({ text }) => {
+    await new Promise((resolve) => { releases.set(text, resolve); });
+    return { ok: true, tokens: originalModel.analyze(text) };
+  });
+  const app = createPlayer({ knownWords: ["like", "give"], nlp });
+  app.setCaption("He likes her.");
+  app.setCaption("it gives you 1");
+  app.click(app.find(".clever-subtitle-review-toggle"));
+  await new Promise(setImmediate);
+  releases.get("it gives you 1")();
+  await new Promise(setImmediate);
+  assert.equal(app.captions.textContent, "it gives you 1");
+  assert.equal(app.captions.querySelector(".clever-subtitle-known").textContent, "gives");
+  releases.get("He likes her.")();
+  await new Promise(setImmediate);
+  assert.equal(app.captions.textContent, "it gives you 1");
+  assert.equal(app.captions.querySelector(".clever-subtitle-known").textContent, "gives");
+  assert.equal(app.find(".clever-subtitle-review-caption").querySelector(".clever-subtitle-known").textContent, "likes");
+  assert.equal(app.video.paused, true);
 });
 
 test("replacing the video detaches old listeners and clears review without resuming the old video", () => {

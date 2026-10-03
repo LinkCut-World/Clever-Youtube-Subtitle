@@ -1,0 +1,10 @@
+{
+  "engineVersion": "1.11.3",
+  "engineCommit": "d1617496b2ae7fcb031d5a2e38511d7401c74afc",
+  "emscriptenVersion": "3.1.73",
+  "model": "english-morphium-wsj-140407-no_negation",
+  "modelSha256": "213408f62b67da1cc48e6ce8d6f7f9ad4db747fe8b5312c04354bff5c087f264",
+  "wasmSha256": "e7fd0b9dfc69e14eb254d8d15023657c92342ed3fe34aecdd88f2797bec85ab7",
+  "glueSha256": "1252d57e57d07a91eb9a60edb27bbc740958a735739ae5e395f11d59be0ba3b2",
+  "engineSourceUrl": "https://github.com/ufal/morphodita/tree/d1617496b2ae7fcb031d5a2e38511d7401c74afc"
+}

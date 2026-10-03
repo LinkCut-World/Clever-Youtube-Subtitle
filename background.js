@@ -1,6 +1,7 @@
 "use strict";
 
-importScripts("word-utils.js", "sync-model.js", "sync-codec.js", "git-bundle.js", "sync-git.js");
+importScripts("word-utils.js", "sync-model.js", "sync-codec.js", "git-bundle.js", "sync-git.js",
+  "morphodita/morphodita.js", "morphodita/engine.js", "nlp-service.js");
 
 const model = globalThis.CleverSubtitleSyncModel;
 const remote = globalThis.CleverSubtitleGitSync;
@@ -175,6 +176,7 @@ async function status() {
 
 chrome.runtime.onMessage.addListener((message, _sender, respond) => {
   const tasks = {
+    "nlp:analyze": () => globalThis.CleverSubtitleNLPService.analyze(message.text).then((tokens) => ({ tokens })),
     "vocab:get": () => serial(() => localData().then((data) => ({ words: model.effectiveWords(data.syncState) }))),
     "vocab:mutate": () => serial(() => mutate(message.mutation)),
     "sync:status": () => serial(status),

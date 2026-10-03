@@ -1,0 +1,160 @@
+MorphoDiTa
+==========
+
+To use this model, you need MorphoDiTa: Morphological Dictionary and Tagger, an
+open-source tool for morphological analysis of natural language texts. Please
+visit the MorphoDiTa website http://ufal.mff.cuni.cz/morphodita for more
+information.
+
+
+English MorphoDiTa Models
+=========================
+
+English models are created using the following data:
+
+- SCOWL (Spell Checker Oriented Word Lists): This word list is used in
+  morphological generation to create all possible word forms of a given word.
+  
+  Copyright: Copyright 2000-2011 by Kevin Atkinson. Permission to use, copy,
+  modify, distribute and sell these word lists, the associated scripts, the
+  output created from the scripts, and its documentation for any purpose is
+  hereby granted without fee, provided that the above copyright notice appears
+  in all copies and that both that copyright notice and this permission notice
+  appear in supporting documentation. Kevin Atkinson makes no representations
+  about the suitability of this array for any purpose. It is provided "as is"
+  without express or implied warranty.
+  
+- Wall Street Journal, part of the Penn Treebank 3: Morphologically annotated
+  texts which are commonly used to train English POS tagger.
+  
+  Licensing: Available as LDC99T42 in LDC catalog under LDC User Agreement.
+
+The resulting models are distributed under the CC BY-NC-SA
+(http://creativecommons.org/licenses/by-nc-sa/3.0/) licence. English models work
+in MorphoDiTa version 1.1 or later.
+
+English models are versioned according to the release date, the version format
+is YYMMDD, where YY, MM and DD are two-digit representation of year, month and
+day, respectively. The latest version is 140407.
+
+
+Acknowledgements
+----------------
+
+This work has been using language resources developed and/or stored and/or
+distributed by the LINDAT/CLARIN project of the Ministry of Education of the
+Czech Republic (project LM2010013).
+
+The morphological POS analyzer development was supported by grant of the
+Ministry of Education, Youth and Sports of the Czech Republic No. LC536 "Center
+for Computational Linguistics". The morphological POS analyzer research was
+performed by Johanka Spoustová (Spoustová 2008; the
+Treex::Tool::EnglishMorpho::Analysis Perl module). The lemmatizer was
+implemented by Martin Popel (Popel 2009; the
+Treex::Tool::EnglishMorpho::Lemmatizer Perl module). The lemmatizer is based on
+morpha, which was released under LGPL licence as a part of RASP system
+(http://ilexir.co.uk/applications/rasp).
+
+The tagger algorithm and feature set research was supported by the projects
+MSM0021620838 and LC536 of Ministry of Education, Youth and Sports of the Czech
+Republic, GA405/09/0278 of the Grant Agency of the Czech Republic and
+1ET101120503 of Academy of Sciences of the Czech Republic. The research was
+performed by Drahomíra "johanka" Spoustová, Jan Hajič, Jan Raab and Miroslav
+Spousta.
+
+
+Publications
+------------
+
+- (Popel 2009) Martin Popel. Ways to Improve the Quality of English-Czech
+  Machine Translation. (http://ufal.mff.cuni.cz/~popel/papers/master_thesis.pdf)
+  Master Thesis at Institute of Formal and Applied Linguistics, Faculty of
+  Mathematics and Physics, Charles University in Prague (2009).
+  
+- (Spoustová 2008) Drahomíra "johanka" Spoustová. Morphium - morphological
+  analyser for Penn treebank POS tagset. (http://ufal.mff.cuni.cz/morphium/)
+  Perl Software developed at Institute of Formal and Applied Linguistics,
+  Faculty of Mathematics and Physics, Charles University in Prague (2008).
+  
+- (Spoustová et al. 2009) Drahomíra "johanka" Spoustová, Jan Hajič, Jan
+  Raab, Miroslav Spousta. 2009. Semi-Supervised Training for the Averaged
+  Perceptron POS Tagger. (http://aclweb.org/anthology//E/E09/E09-1087.pdf) In
+  Proceedings of the 12th Conference of the European Chapter of the ACL (EACL
+  2009), pages 763-771, Athens, Greece, March. Association for Computational
+  Linguistics.
+
+
+English Morphological System
+----------------------------
+
+The English morphology uses standard Penn Treebank POS tags. Nevertheless, the
+lemma structure is unique:
+
+- The lemmatizer recognizes negative prefixes and removes it from the lemma. In
+  terms of MorphoDiTa API, raw lemma is the lemma without negative prefix.
+- The negative prefix is also stored to allow morphological generation of word
+  form with the same negative prefix. In terms of MorphoDiTa API, lemma id is
+  the raw lemma plus the negative prefix.
+
+The negative prefix is separated from the (always nonempty) lemma using a ^
+character (able^un). During morphological generation, the negative prefix is
+honored. Furthermore, when the lemma ends with ^ (i.e., negative prefix is
+empty, as in able^), forms with negative prefixes are generated. It is also
+possible to generate all forms without any negative prefix by appending + after
+the lemma (for example able+).
+
+
+English Model
+-------------
+
+The English model contains the following files:
+
+english-morphium-<version>.dict
+  Morphological dictionary. The SCOWL word list has been automatically analyzed
+  and lemmatized and uses as the dictionary. The guesser performing the
+  analyzation and lemmatization is available.
+  
+english-morphium-wsj-<version>.tagger
+  Tagger trained on the training portion of Wall Street Journal (Sections 0-18)
+  and tuned on the development portion (Sections 19-21). Contains the
+  english-morphium-<version>.dict morphological dictionary.
+  
+  The latest version english-morphium-wsj-140407.tagger reaches 97.27% tag
+  accuracy on Wall Street Journal test portion (Section 22-24). Model speed:
+  ~60k words/s, model size: 6MB.
+
+
+No Negations Variant
+--------------------
+
+Stripping of negative prefixes (or handling the lemmas with negative prefixes
+stripped) may not be desirable. Therefore, a variant of the English model
+denoted by no_negation is provided, which does not strip negative prefixes from
+lemmas.
+
+english-morphium-<version>-no_negation.dict
+  Morphological dictionary which does not strip negative lemma prefixes. The
+  SCOWL word list has been automatically analyzed and lemmatized and uses as the
+  dictionary. The guesser performing the analyzation and lemmatization is
+  available.
+  
+english-morphium-wsj-<version>-no_negation.tagger
+  Tagger which does not strip negative lemma prefixes, trained on the training
+  portion of Wall Street Journal (Sections 0-18) and tuned on the development
+  portion (Sections 19-21). Contains the
+  english-morphium-<version>-no_negation.dict morphological dictionary.
+  
+  The latest version english-morphium-wsj-140407-no_negation.tagger reaches
+  97.25% tag accuracy on Wall Street Journal test portion (Section 22-24). Model
+  speed: ~60k words/s, model size: 6MB.
+
+
+English Model Changes
+---------------------
+
+english-morphium-140407 and english-morphium-wsj-140407 (require MorphoDiTa 1.1 or later)
+  Recognize also "non-" as a negative prefix. Formerly, only "non" was
+  recognized.
+  
+english-morphium-140304 and english-morphium-wsj-140304 (require MorphoDiTa 1.0 or later)
+  Initial release.

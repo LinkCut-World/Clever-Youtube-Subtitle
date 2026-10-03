@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Clever Youtube Subtitle",
-  "version": "1.8.11",
+  "version": "1.9.0",
   "description": "Hide words you know in YouTube captions. Hover to see or change them.",
   "permissions": ["storage", "alarms"],
   "optional_host_permissions": ["https://*/*", "http://*/*"],
@@ -13,10 +13,13 @@
     "default_popup": "popup.html"
   },
   "options_page": "options.html",
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+  },
   "content_scripts": [
     {
       "matches": ["https://www.youtube.com/*", "https://m.youtube.com/*"],
-      "js": ["lemma-bundle.js", "word-utils.js", "content.js"],
+      "js": ["nlp-client.js", "word-utils.js", "content.js"],
       "css": ["captions.css"],
       "run_at": "document_idle"
     }

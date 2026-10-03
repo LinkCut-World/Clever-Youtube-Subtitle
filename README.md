@@ -14,23 +14,19 @@ visible. You can reveal a hidden word and change your vocabulary while watching.
   listening.
 - **Help with words you do not know.** Words outside your list stay visible.
   You can reveal hidden words whenever you need them.
+- **Uses YouTube's own captions.** No separate translation API or API key is
+  needed.
 - **Private by default.** Word matching runs locally. Your vocabulary stays on
   your device unless you choose to use Git sync.
 
 ### Limits
 
-- **You maintain your own word list.** The extension does not know which words
-  you already know. You need to add them to My Vocabulary and keep the list up
-  to date. Usually, saving the base form is enough: save `like` to cover `likes`
-  and `liked`, without adding each form separately. Preparing your first list
-  can take time; importing a list you already have can help.
-- **Word matching can make mistakes.** A short caption or a word with several
-  meanings can lead to the wrong base form. A word you know may stay visible,
-  or a word you wanted to see may be hidden.
-- **It needs YouTube captions.** It works with YouTube's own CC and does not fix
-  missing or incorrect captions.
-- **It uses extra memory.** The local word model adds memory use and can take a
-  moment to load, especially on a phone.
+- **Bring your own word list.** This extension works best if you already have a
+  list of English words you know. Import that list into My Vocabulary before
+  you start watching. If you do not have one, building a useful list from
+  scratch can take a lot of time and effort. Usually, saving the base form is
+  enough: save `like` to cover `likes` and `liked`, without listing each form
+  separately.
 
 **[Download the latest release](https://github.com/LinkCut-World/Clever-Youtube-Subtitle/releases/latest)**
 

@@ -1,99 +1,155 @@
 # Clever Youtube Subtitle
 
-Learn English with YouTube captions. Save words you know in **My Vocabulary**. The extension hides those words in YouTube's own captions, so you can focus on words you do not know. Hidden words still keep their place in each line.
+Hide words you know in YouTube captions, and focus on listening.
+
+Save your known words in **My Vocabulary**, then turn on YouTube captions (CC).
+Words you know become invisible but keep their place. Words you do not know stay
+visible. You can reveal a hidden word and change your vocabulary while watching.
+
+**[Download the latest release](https://github.com/LinkCut-World/Clever-Youtube-Subtitle/releases/latest)**
 
 ## Install
 
-1. Download this repository as a ZIP file and unzip it, or clone it with Git.
-2. Open `chrome://extensions` in Chrome and turn on **Developer mode**.
-3. Click **Load unpacked** and choose the folder that contains `manifest.json`.
-4. Open a YouTube video and turn on captions (CC).
+Choose an installation ZIP under **Assets** on the release page:
 
-The ready-to-use English word model is included. You do not need Node.js to use the extension.
+| Browser | Download |
+| --- | --- |
+| Chrome on a computer | `Clever-Youtube-Subtitle-Chrome-v….zip` |
+| Kiwi on Android | `Clever-Youtube-Subtitle-Kiwi-v….zip` |
 
-## Use My Vocabulary
+The word model is included. You do not need Node.js, Python, or a local server to
+use the extension.
 
-- Click the extension icon, then **Open My Vocabulary**.
-- Import a TXT or one-column CSV file, or type words into the page. You can add to your saved words or replace all of them.
-- Search, remove, and export words on the same page. The list shows 50 words at a time, even when you have thousands of words.
-- Move your mouse over a shown word in a YouTube caption. Click the small **+** button just above it to add it to My Vocabulary.
-- Move your mouse over a hidden word to see it faintly. Click the small **−** button just above it to remove it from My Vocabulary.
-- Hover over either button to see the exact word that will be added or removed. For example, `likes` can use the base form `like`.
+### Chrome
 
-Changes to My Vocabulary update the open caption right away. Turning off YouTube captions also turns off the filtered caption.
+1. Download the **Chrome ZIP** and unzip it.
+2. Open `chrome://extensions` and turn on **Developer mode**.
+3. Click **Load unpacked** and select the folder containing `manifest.json`.
+4. Click the extension icon, then **Open My Vocabulary**, and add your words.
+5. Open a YouTube video and turn on captions (CC).
 
-## Review the previous caption
+To update, replace the files in the same extension folder, click **Reload** on
+the extensions page, and refresh your YouTube tabs.
 
-After captions move on, a small **↶ Previous caption** button appears at the top left of the video. Click it to pause the video and open the previous caption. You can reveal hidden words and use the same **+** and **−** word buttons there, without rewinding or trying to pause at the right moment.
+### Kiwi on Android
 
-On a touch screen, tap and release **Previous caption** to open it. Drag the text area to scroll a long caption. The review buttons work even when YouTube's player controls cover their touch area.
+1. Download the **Kiwi ZIP** to your phone.
+2. Open Kiwi's **Extensions** page and turn on **Developer mode**.
+3. Tap **+ (from .zip/.crx/.user.js)** and choose the ZIP.
+4. Open **Clever Youtube Subtitle** from Kiwi's menu, then tap **Open My Vocabulary**.
+5. Add or import your words, open YouTube, and turn on captions (CC).
 
-Drag the **Previous caption** button with your mouse or finger to move it. When you release it, the button moves to the closer left or right edge of the video and keeps its height. Dragging does not open or close the caption. The panel follows the button and opens above it when there is more room there. The position stays within the video when its size changes.
+The Kiwi ZIP includes access to HTTP and HTTPS servers at installation, so Git
+sync does not need a later permission prompt. Chrome asks for access to your Git
+server when you set up sync.
 
-The previous caption stays open while you update My Vocabulary. Click **Continue playback**, click **Previous caption** again, or press **Esc** when you are ready to continue. If the video was already paused, the closing button says **Close** and keeps it paused.
+## My Vocabulary
 
-The extension remembers the last distinct caption it saw on the current video. Line wrapping and words gradually added to a caption do not replace that history. Seeking, changing videos, or turning off CC clears it.
+My Vocabulary is the list of English words you already know.
 
-## Sync between devices
+- **Import words:** choose a TXT or one-column CSV file. Separate words with a
+  new line, space, comma, or semicolon.
+- **Add to My Vocabulary:** keep your saved words and add the imported words.
+- **Replace My Vocabulary:** replace your saved words with the imported words.
+- **Add words:** type a word or paste several words.
+- **Browse words:** search the whole list and remove words. Each page shows 50 words.
+- **Export TXT:** save a copy for backup or transfer to another device.
 
-Create a **separate private Git repository** for your vocabulary. It can be on GitHub, GitLab, Gitea, Forgejo, or your own Git server. The server must support Git Smart HTTP for reading and pushing over HTTP or HTTPS. Do not use the Clever Youtube Subtitle code repository: its history may become public later.
+Duplicates are skipped, and matching ignores capital letters. Changes update
+open captions right away.
 
-1. Prepare a user name and token or password that can read and push to only that vocabulary repository. The credentials must work for Git over HTTP, not just for the website's API.
-2. In **My Vocabulary**, under **Sync between devices**, paste the repository's **HTTPS clone URL**. You can include login details, such as `https://USERNAME:TOKEN@git.example.com/USERNAME/my-vocabulary.git`, or enter them in the separate fields. Use your real values only in the extension; never add the token to this code repository. Leave **Branch** empty to use the default branch. An empty repository starts with `main` unless you enter another branch.
-3. Click **Save and sync** and allow the extension to connect to that server when the browser asks. Repeat on your other device with the same repository and branch. The page shows the repository address without login details after you save it.
+## While watching
 
-The extension saves changes locally first, then syncs in the background after about 30 seconds and checks for changes every five minutes. When the browser starts or the extension updates, it restores the timer if needed and tries one sync if sync is enabled. **Sync now** checks immediately. If you are offline, your words stay on your device and sync when it can connect again. Turning off sync keeps your local words and removes the saved connection token. When two devices connect for the first time, their existing words are combined. To replace the shared vocabulary, connect and sync first, then use **Replace My Vocabulary**.
+| Action | Mouse | Touch screen |
+| --- | --- | --- |
+| Reveal a hidden word | Hover over its place | Tap its place |
+| Add a visible word | Hover, then click **+** | Tap the word, lift your finger, then tap **+** |
+| Remove a hidden word | Reveal it, then click **−** | Reveal it, lift your finger, then tap **−** |
 
-Changes to different words are kept. If two devices change the same word, the action with the later recorded time wins; equal times use a stable device ID. If another device pushes first, the extension reads the new version, merges words, and retries. It never force-pushes. Device clocks that are wrong can affect the order of offline changes. The repository stores `clever-subtitle-vocabulary.json.gz`, including removal records so older device copies cannot restore deleted words.
+Revealed words appear faintly. On a touch screen, selecting a word pauses the
+video. The first tap selects the word; the second tap changes My Vocabulary.
+Use YouTube's play button to continue.
 
-The bundled Git client runs inside the extension and connects directly to your server, without a proxy or a local service. Your local vocabulary remains in extension storage; a temporary Git checkout is recreated for each sync. SSH URLs and browser-only login pages are not supported. Use the final clone URL rather than a redirect. If you used GitHub sync in version 1.8.0, save its settings once after updating to allow access to `github.com`; the vocabulary file format is unchanged.
+The word button shows **…** while reading a word or saving it. **!** means the
+save failed; tap again to retry. Hover over the button to see the word it will
+add or remove.
 
-## Move your words with a file
+### Previous caption
 
-Open **My Vocabulary** on your first browser and click **Export TXT**. Move the saved TXT file to your other device. In the other browser, open **My Vocabulary**, choose that file, select **Replace My Vocabulary**, and click **Import words**. Use **Add to My Vocabulary** instead if you want to keep words already saved on the other device.
+Click or tap **↶ Previous caption** to pause and read the last caption. You can
+reveal words and use the same **+ / −** buttons there. Choose **Continue playback**
+when you are ready, or **Close** if the video was already paused.
 
-This is a manual transfer. Keep the exported TXT file as a backup, even if you use Git sync.
+Drag the **Previous caption** button to move it. After you release it, it moves
+to the closer left or right edge of the video. Seeking, changing videos, or
+turning off CC clears the caption history.
 
-### Kiwi Browser on Android
+### How words match
 
-Use the **Kiwi ZIP**, which requests Git server access when it is installed. Kiwi may fail to show the later access prompt with the error "Could not find an active window". The default Kiwi ZIP requests HTTP/HTTPS host access so you can use any Git server. The desktop version requests access to each server when you save its settings.
+The extension checks a word's base form in its sentence. For example, `like` can
+hide `likes` and `liked`, and `give` can hide `gives`. In `on understanding what
+happens`, `understand` can hide `understanding`. In `My understanding is different`,
+the model keeps the noun `understanding`.
 
-Kiwi may install the ZIP without a separate permission prompt. The extension checks server access when you save the sync settings. To open My Vocabulary, choose **Clever Youtube Subtitle** from Kiwi's menu, then tap **Open My Vocabulary**. The page opens in a normal tab. If Kiwi's **Extension options** link does not open a visible page, use this menu button instead.
+The original MorphoDiTa English model runs locally in your browser. It can still
+make mistakes, especially with short captions. Loading the model for the first
+caption can take a moment.
 
-Kiwi can install a ZIP of the extension from its extensions page. Open **Extensions**, turn on **Developer mode**, tap **+ (from .zip/.crx/.user.js)**, and choose the Kiwi ZIP. Then open **My Vocabulary** in Kiwi and import the TXT file you moved from your computer.
+## Use your words on another device
 
-On a touch screen, tap a caption word to pause the video and select the word. Lift your finger, then tap the **+** or **−** button to change My Vocabulary. The first tap does not change your saved words. The button stays open until you use it, tap outside the word, or resume playback. Updating My Vocabulary keeps the video paused; use YouTube's play button when you are ready to continue. If YouTube captions are not filtered on the mobile site, use Kiwi's **Desktop site** mode for YouTube and turn on CC there.
+### Transfer with a TXT file
 
-The **+** and **−** buttons also work when YouTube's controls cover their touch area. A separate tap acts when you lift your finger. The button shows **…** while saving locally and **!** if saving fails; tap it again to retry. Local changes do not wait for Git sync.
+On the first device, open **My Vocabulary** and click **Export TXT**. Move the
+file to the other device and import it there. Choose **Add to My Vocabulary**
+to combine the lists, or **Replace My Vocabulary** to use only the imported list.
+This is a manual transfer, not automatic sync.
 
-You can also tap **Previous caption** to pause and review the last caption, then tap **Continue playback** when you have finished.
+### Optional Git sync
 
-[Kiwi Browser is archived](https://github.com/kiwibrowser/src.next/blob/kiwi/README.md), so support for this Manifest V3 extension may vary by Kiwi version.
+1. Create a **separate private Git repository** for your vocabulary.
+2. Open **My Vocabulary → Sync between devices**.
+3. Enter its HTTPS clone URL and a user name and token or password that can read
+   and push to that repository. A URL containing login details is also accepted.
+4. Leave **Branch** empty to use the default branch, then click **Save and sync**.
+5. Use the same repository and branch on your other device.
 
-## How words match
+Changes are saved locally first. Sync starts about 30 seconds after a change and
+checks every five minutes while the browser is running. It resumes when you
+reopen the browser. **Sync now** runs a check immediately.
 
-Matching ignores capital letters and marks at the start or end of a word. The extension also checks the sentence to find a word's base form. For example, saving `like` can hide `likes`, `liked`, and `liking`. The button shows the word that will be saved or removed.
+The first sync combines the devices' existing words. If two devices change the
+same word, the action with the later recorded time wins. Keep device clocks
+correct. Your words remain available offline.
 
-Caption line breaks, separate text segments, and trailing spaces keep this matching. For example, `it gives you 1 plus 4` uses `give`, even if the caption ends with a space.
+The server must support Git over HTTP or HTTPS. SSH addresses and website-only
+login are not supported. See [Git sync details](docs/GIT_SYNC.md) for server
+requirements and how changes merge.
 
-The bundled [MorphoDiTa](https://ufal.mff.cuni.cz/morphodita) English model runs locally in the extension's background worker. Open YouTube tabs share one model. It loads when a caption first needs it and can load again after the browser stops an idle worker. Loading can take a moment; a selected word shows **…** until its base form is ready. If the model cannot load, the extension still matches exact words.
+## Help
 
-The extension uses the original model's base forms. It does not add grammar rules or replace model results. In `his main focus was on understanding what happens…`, this model returns `understand`, so that saved word hides `understanding`. In `My understanding is different`, it keeps the noun `understanding`. The model can still make mistakes, especially with short captions. You can edit My Vocabulary at any time.
+- **No filtered captions:** turn on YouTube's own CC. If another extension shows
+  captions on top of the video, turn off that caption layer.
+- **Kiwi mobile page does not work:** try YouTube in **Desktop site** mode.
+- **My Vocabulary does not open in Kiwi:** open the extension from Kiwi's menu
+  and use **Open My Vocabulary** instead of the **Extension options** link.
+- **Git server access prompt fails in Kiwi:** install the **Kiwi ZIP** from Releases.
 
-The model file is about 5.4 MiB. The desktop browser experiment allocated about 84 MiB of WASM memory; this is not the browser's full process memory. The model and caption analysis do not use an external service.
+Kiwi support can vary by browser version.
 
 ## Privacy
 
-My Vocabulary is saved in local extension storage. Git sync is optional. When you turn it on, the extension sends your vocabulary and change records to the Git repository you choose. Login details are saved only in that browser's extension storage, not in the source code or installation ZIP. Server access is requested for the host you enter. The extension cannot check repository visibility for every Git server, so choose a private repository. It works on YouTube pages and reads YouTube's own captions. If another extension adds captions on top of the video, turn off that other caption layer to see only the filtered YouTube captions.
+Your vocabulary and login details stay in this browser's extension storage.
+Caption analysis runs locally. If you enable Git sync, your vocabulary and its
+change records are sent to the repository you choose. Use a separate private
+repository; installation ZIPs do not include your words or login details.
 
-## Build and test
+## Development and license
 
-Run `npm ci`, `npm run build`, and `npm test` for local checks. Git must be installed to run the sync integration tests, which use a temporary local Git HTTP server. `npm run build` verifies the included MorphoDiTa runtime hashes and notices. Run `npm run build:git` if you change `git-entry.js` or its packages. Commit the runtime files and license notices so the extension remains ready to install.
+See the [development guide](docs/DEVELOPMENT.md) for local checks, WASM builds,
+and the release process.
 
-To rebuild the WASM engine, obtain MorphoDiTa source commit `d1617496b2ae7fcb031d5a2e38511d7401c74afc`, the official English WSJ 140407 no_negation model, and an activated Emscripten 3.1.73 SDK. Then run `./build-morphodita.ps1 -SourceRoot C:\path\to\morphodita -SdkRoot C:\path\to\emsdk -ModelPath C:\path\to\english-morphium-wsj-140407-no_negation.tagger`. Python is used by the build tool only. The installed extension runs WASM directly and does not need Python or a local service.
-
-On Windows, run `./package-kiwi.ps1` after committing a release to build its Kiwi ZIP. To allow only your Git host, use `./package-kiwi.ps1 -GitServers 'https://git.example.com/*'`. This script packages committed runtime files and changes only the ZIP's host-permission declaration; it does not include local vocabulary or credentials.
-
-## License
-
-The project's own code is licensed under the [MIT License](LICENSE). The bundled MorphoDiTa library is MPL 2.0, and its English model is CC BY-NC-SA 3.0 Unported. The model is provided for noncommercial use under that license. The complete installation package has these additional terms; it is not solely MIT. Full notices, attribution, and corresponding source links are in [THIRD_PARTY_LICENSES.txt](THIRD_PARTY_LICENSES.txt). Git client and filesystem dependency notices are included in [GIT_THIRD_PARTY_LICENSES.txt](GIT_THIRD_PARTY_LICENSES.txt).
+Project code is [MIT](LICENSE). The bundled MorphoDiTa engine is MPL 2.0, and its
+English model is CC BY-NC-SA 3.0 Unported, for noncommercial use under that license.
+The full package includes these additional terms. See
+[word-model notices](THIRD_PARTY_LICENSES.txt) and
+[Git dependency notices](GIT_THIRD_PARTY_LICENSES.txt).

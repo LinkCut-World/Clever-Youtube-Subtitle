@@ -78,12 +78,16 @@ Kiwi package to your own server:
 
 Update `manifest.json`, `package.json`, and `package-lock.json` together, and write
 the version's notes in `RELEASE_NOTES.md`. Commit the changes, then push a matching
-tag, such as `v1.9.1`.
+tag, such as `v1.9.2`. Push the branch first, then push the tag.
 
 The **Release** GitHub Actions workflow checks out that tag, verifies the bundled
 runtime, builds both packages, attaches them and their checksums to a draft
 GitHub Release, and then publishes it. It uses GitHub's temporary workflow token;
 no personal access token needs to be stored in the repository.
+
+To publish an existing tag again after an interrupted run, open the **Release**
+workflow in GitHub Actions, choose **Run workflow**, and enter that version tag.
+Already published releases are kept unchanged.
 
 Installation ZIPs belong in **Releases**, while source and packaging scripts
 belong in Git. `dist/` stays ignored. GitHub's automatic source archive can also

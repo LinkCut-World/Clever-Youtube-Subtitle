@@ -6,6 +6,32 @@ Save your known words in **My Vocabulary**, then turn on YouTube captions (CC).
 Words you know become invisible but keep their place. Words you do not know stay
 visible. You can reveal a hidden word and change your vocabulary while watching.
 
+## Is it right for you?
+
+### Good points
+
+- **Less text to read.** Familiar words stay hidden, so you can focus more on
+  listening.
+- **Help with words you do not know.** Words outside your list stay visible.
+  You can reveal hidden words whenever you need them.
+- **Private by default.** Word matching runs locally. Your vocabulary stays on
+  your device unless you choose to use Git sync.
+
+### Limits
+
+- **You maintain your own word list.** The extension does not know which words
+  you already know. You need to add them to My Vocabulary and keep the list up
+  to date. Usually, saving the base form is enough: save `like` to cover `likes`
+  and `liked`, without adding each form separately. Preparing your first list
+  can take time; importing a list you already have can help.
+- **Word matching can make mistakes.** A short caption or a word with several
+  meanings can lead to the wrong base form. A word you know may stay visible,
+  or a word you wanted to see may be hidden.
+- **It needs YouTube captions.** It works with YouTube's own CC and does not fix
+  missing or incorrect captions.
+- **It uses extra memory.** The local word model adds memory use and can take a
+  moment to load, especially on a phone.
+
 **[Download the latest release](https://github.com/LinkCut-World/Clever-Youtube-Subtitle/releases/latest)**
 
 ## Install

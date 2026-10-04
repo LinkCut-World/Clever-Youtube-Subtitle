@@ -1,11 +1,11 @@
 {
   "name": "clever-youtube-subtitle",
-  "version": "1.9.2",
+  "version": "1.9.3",
   "private": true,
   "scripts": {
     "build": "node build-nlp.cjs",
     "build:git": "node build-git.cjs",
-    "test": "node --test background.test.js content.test.js nlp.test.js word-utils.test.js vocabulary.test.js sync-model.test.js sync-codec.test.js sync-git.test.js sync-access.test.js"
+    "test": "node --test background.test.js caption-stream.test.js content.test.js nlp.test.js word-utils.test.js vocabulary.test.js sync-model.test.js sync-codec.test.js sync-git.test.js sync-access.test.js"
   },
   "dependencies": {
     "@isomorphic-git/lightning-fs": "4.10.3",

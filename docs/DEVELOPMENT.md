@@ -25,6 +25,15 @@ tabs share that worker's model, and each tab keeps a small caption-result cache.
 The browser can stop an idle worker; the next uncached caption reloads the model.
 No keep-alive loop or external NLP service is required.
 
+`caption-stream.js` tracks each word occurrence through appended text, native
+visual rows, and row rolls. It keeps one active analysis plus the latest waiting
+snapshot. Snapshots reference their original word objects, so late results can
+finish retained words and frozen history without overwriting a new caption.
+The most recently removed row supplies context for the current rows. Original
+model lemmas can change as that context grows; ready words stay rendered while
+new analysis runs. If a frozen row's waiting analysis was dropped, opening it
+finishes its saved context. Whitespace is kept exactly in the page.
+
 - Engine: MorphoDiTa 1.11.3, unmodified upstream source.
 - Source commit: `d1617496b2ae7fcb031d5a2e38511d7401c74afc`.
 - Compiler: Emscripten 3.1.73.

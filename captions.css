@@ -30,6 +30,12 @@
   text-underline-offset: 0.15em;
 }
 
+.ytp-caption-segment .clever-subtitle-pending,
+.clever-subtitle-review-caption .clever-subtitle-pending {
+  /* Ready words stay visible while newly appended words keep their space. */
+  visibility: hidden !important;
+}
+
 .clever-subtitle-word-button {
   position: fixed;
   z-index: 2147483647;

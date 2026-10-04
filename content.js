@@ -7,13 +7,13 @@
   const nlp = globalThis.CleverSubtitleNLP;
   const pendingAnalysis = new Set();
   const originals = new WeakMap();
+  const stream = globalThis.CleverSubtitleStream.createStream(nlp, globalThis.CleverSubtitleWords, () => {
+    nlpRevision++;
+    updateCaptions();
+  });
   let knownWords = new Set();
   let wordsRevision = 0;
-  let analyzedContext = "";
-  let analyzedRevision = -1;
-  let analyzedParts = [];
   let nlpRevision = 0;
-  let analyzedNlpRevision = -1;
   let wordButton;
   let activeElement;
   let hideTimer;
@@ -76,6 +76,7 @@
     hideWordButton();
     currentCaption = null;
     previousCaption = null;
+    stream.reset();
     if (review) review.hidden = true;
     if (blockedTouch?.drag) finishReviewDrag(blockedTouch, true);
   }
@@ -252,13 +253,16 @@
 
   function renderReviewCaption() {
     if (!reviewedCaption || (reviewRevision === wordsRevision && reviewNlpRevision === nlpRevision)) return;
-    const parts = partsForCaption([reviewedCaption.text])[0];
-    updateSegment(reviewCaption, parts, reviewedCaption.text);
+    if (reviewedCaption.line) stream.finish(reviewedCaption.line);
+    const parts = reviewedCaption.line
+      ? stream.parts([reviewedCaption.text], knownWords, reviewedCaption.line.units)[0]
+      : partsForCaption([reviewedCaption.text])[0];
+    updateSegment(reviewCaption, parts, Boolean(reviewedCaption.line));
     reviewRevision = wordsRevision;
     reviewNlpRevision = nlpRevision;
   }
 
-  function updateCaptionHistory(texts) {
+  function updateCaptionHistory(texts, frame) {
     const video = document.querySelector("video.html5-main-video") || document.querySelector("video");
     trackVideo(video);
     const host = video?.closest(".html5-video-player") || video?.parentElement;
@@ -269,11 +273,14 @@
       return;
     }
     const key = captionText(texts);
+    if (frame.removed) {
+      previousCaption = { key: frame.removed.text, text: frame.removed.text, line: frame.removed };
+    }
     if (key && !video.seeking) {
       if (key === staleCaptionKey) return;
       staleCaptionKey = null;
       const next = { key, text: texts.join(" ") };
-      if (currentCaption && currentCaption.key !== key && !key.startsWith(`${currentCaption.key} `)) {
+      if (!frame.removed && !frame.streaming && currentCaption && currentCaption.key !== key && !key.startsWith(`${currentCaption.key} `)) {
         previousCaption = currentCaption;
       }
       currentCaption = next;
@@ -398,40 +405,37 @@
     positionWordButton();
   }
 
-  function updateSegment(segment, parts, context) {
+  function updateSegment(segment, parts, streaming = false) {
     const current = segment.textContent || "";
     const previous = originals.get(segment);
-    const wrappedCount = parts.filter((part) => part.hidden || part.addWord).length;
-    const existingCount = segment.querySelectorAll(".clever-subtitle-known, .clever-subtitle-unknown").length;
+    const wrappedCount = parts.filter((part) => part.hidden || part.addWord || part.pending).length;
+    const existing = [...segment.querySelectorAll(".clever-subtitle-known, .clever-subtitle-unknown, .clever-subtitle-pending")];
+    const existingCount = existing.length;
+    const signature = JSON.stringify(parts);
     // Native, unprocessed segments are hidden by CSS too. Publish the whole
     // segment only after analysis settles; opacity preserves its exact layout.
-    segment.dataset.cleverReady = String(!parts.some((part) => part.pending));
+    segment.dataset.cleverReady = String(streaming || !parts.some((part) => part.pending));
 
     // Hidden spans retain their original text, so textContent remains the full
     // YouTube caption. This also lets us detect when YouTube replaces a line.
     if (previous?.original === current &&
-        previous.wordsRevision === wordsRevision &&
-        previous.nlpRevision === nlpRevision &&
-        previous.context === context &&
+        previous.signature === signature &&
         existingCount === wrappedCount) return;
 
     if (wrappedCount === 0) {
       if (existingCount) segment.textContent = current;
     } else {
       const fragment = document.createDocumentFragment();
+      const spans = new Map(existing.filter((span) => span.dataset.cleverId)
+        .map((span) => [span.dataset.cleverId, span]));
       for (const part of parts) {
-        if (part.hidden) {
-          const span = document.createElement("span");
-          span.className = "clever-subtitle-known";
-          span.dataset.cleverWord = part.removeWord;
+        if (part.hidden || part.addWord || part.pending) {
+          const span = spans.get(part.id) || document.createElement("span");
+          span.className = part.hidden ? "clever-subtitle-known" : part.addWord ? "clever-subtitle-unknown" : "";
+          if (part.pending) span.classList.add("clever-subtitle-pending");
+          span.dataset.cleverWord = part.hidden ? part.removeWord : part.addWord || "";
           span.dataset.cleverPending = String(Boolean(part.pending));
-          span.textContent = part.text;
-          fragment.appendChild(span);
-        } else if (part.addWord) {
-          const span = document.createElement("span");
-          span.className = "clever-subtitle-unknown";
-          span.dataset.cleverWord = part.addWord;
-          span.dataset.cleverPending = String(Boolean(part.pending));
+          if (part.id) span.dataset.cleverId = part.id;
           span.textContent = part.text;
           fragment.appendChild(span);
         } else {
@@ -440,7 +444,7 @@
       }
       segment.replaceChildren(fragment);
     }
-    originals.set(segment, { original: current, wordsRevision, nlpRevision, context });
+    originals.set(segment, { original: current, signature });
   }
 
   function partsForCaption(texts) {
@@ -464,6 +468,24 @@
     return parts;
   }
 
+  function captionLines(segments) {
+    const rows = [];
+    for (const segment of segments) {
+      const source = segment.closest(".caption-visual-line");
+      const captionHost = segment.closest(".caption-window, .captions-text");
+      const top = segment.getBoundingClientRect().top;
+      const previous = rows.at(-1);
+      if (previous && (source ? previous.source === source :
+        !previous.source && previous.captionHost === captionHost && Math.abs(previous.top - top) < 2)) {
+        previous.texts.push(segment.textContent || "");
+      } else {
+        rows.push({ source, captionHost, top, texts: [segment.textContent || ""] });
+      }
+    }
+    return rows.flatMap((row) => row.texts.join(" ").split(/\r?\n/u)
+      .map((text) => ({ text, source: row.source })));
+  }
+
   function updateCaptions() {
     // YouTube adds/removes these nodes as captions change or are toggled.
     const segments = [...document.querySelectorAll(".ytp-caption-segment")];
@@ -471,40 +493,43 @@
       captionText: activeCaptionText,
       text: activeElement.textContent,
       word: activeElement.dataset.cleverWord,
+      id: activeElement.dataset.cleverId,
       pending: activeElement.dataset.cleverPending === "true",
       known: activeElement.classList.contains("clever-subtitle-known"),
       rect: activeRect,
       touch: touchSelection,
       review: activeInReview
     };
+    const video = document.querySelector("video.html5-main-video") || document.querySelector("video");
+    trackVideo(video);
     const texts = segments.map((segment) => segment.textContent || "");
-    const context = JSON.stringify(texts);
-    if (context !== analyzedContext || wordsRevision !== analyzedRevision || analyzedNlpRevision !== nlpRevision) {
-      analyzedContext = context;
-      analyzedRevision = wordsRevision;
-      analyzedNlpRevision = nlpRevision;
-      analyzedParts = partsForCaption(texts);
+    if (video?.seeking || (staleCaptionKey !== null && captionText(texts) === staleCaptionKey)) {
+      for (const segment of segments) segment.dataset.cleverReady = "false";
+      return;
     }
-    segments.forEach((segment, index) => updateSegment(segment, analyzedParts[index], context));
-    updateCaptionHistory(texts);
+    const frame = stream.update(captionLines(segments));
+    const analyzedParts = stream.parts(texts, knownWords, frame.units);
+    segments.forEach((segment, index) => updateSegment(segment, analyzedParts[index], frame.streaming));
+    updateCaptionHistory(texts, frame);
     if (!selection) return;
     // YouTube may rebuild or split a caption when player controls appear.
     // Keep the selected word if the displayed sentence is still the same.
     const selectedCaption = selection.review ? reviewedCaption?.key : captionText(texts);
     const selectedSegments = selection.review && reviewedCaption ? [reviewCaption] : segments;
-    if (selection.captionText !== selectedCaption) {
+    if (!selection.id && selection.captionText !== selectedCaption) {
       hideWordButton();
       return;
     }
     if (selectedSegments.some((segment) => segment.contains(activeElement))) {
-      positionWordButton();
+      showWordButton(activeElement, selection.touch);
       return;
     }
     const candidates = [...document.querySelectorAll(WORD_SELECTOR)].filter((element) =>
       selectedSegments.some((segment) => segment.contains(element)) &&
-      element.textContent === selection.text &&
-      (selection.pending || (element.dataset.cleverWord === selection.word &&
-      element.classList.contains("clever-subtitle-known") === selection.known))
+      (selection.id ? element.dataset.cleverId === selection.id :
+        element.textContent === selection.text &&
+        (selection.pending || (element.dataset.cleverWord === selection.word &&
+        element.classList.contains("clever-subtitle-known") === selection.known)))
     );
     candidates.sort((a, b) => {
       const point = selection.rect;
@@ -523,6 +548,7 @@
     chrome.storage.local.get(STORAGE_KEY, (result) => {
       if (chrome.runtime.lastError) {
         console.warn("Clever Youtube Subtitle: unable to read My Vocabulary", chrome.runtime.lastError);
+        updateCaptions();
         return;
       }
       const saved = Array.isArray(result[STORAGE_KEY]) ? result[STORAGE_KEY] : [];

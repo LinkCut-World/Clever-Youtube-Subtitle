@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
 const words = require("./word-utils.js");
+const streams = require("./caption-stream.js");
 const originalModel = require("./nlp-test-helper.cjs");
 test.before(originalModel.loadEngine);
 const cachedNLP = { peek: originalModel.analyze };
@@ -135,6 +136,7 @@ test("caption words keep spacing and can be added or removed from the hover butt
   const body = new FakeElement();
   const context = {
     CleverSubtitleWords: words,
+    CleverSubtitleStream: streams,
     CleverSubtitleNLP: cachedNLP,
     Node: { ELEMENT_NODE: 1 },
     setTimeout,
@@ -406,6 +408,7 @@ function createPlayer({ paused = false, knownWords = [], nlp = cachedNLP } = {})
   let onPlayerResize;
   const context = {
     CleverSubtitleWords: words,
+    CleverSubtitleStream: streams,
     CleverSubtitleNLP: nlp,
     Node: { ELEMENT_NODE: 1 },
     setTimeout,
@@ -477,8 +480,23 @@ function createPlayer({ paused = false, knownWords = [], nlp = cachedNLP } = {})
     mutate();
     return segments;
   };
+  const setCaptionRows = (...rows) => {
+    const elements = rows.map((texts) => {
+      const row = new FakeElement();
+      row.className = "caption-visual-line";
+      for (const text of texts) {
+        const segment = new FakeElement(text);
+        segment.className = "ytp-caption-segment";
+        row.appendChild(segment);
+      }
+      return row;
+    });
+    captions.replaceChildren({ nodes: elements });
+    mutate();
+    return elements;
+  };
   return {
-    body, player, video, cc, captions, context, documentListeners, windowListeners, setCaption, mutate,
+    body, player, video, cc, captions, context, documentListeners, windowListeners, setCaption, setCaptionRows, mutate,
     savedWords: () => Array.from(savedWords),
     resizePlayer: () => onPlayerResize?.(),
     setKnownWords(next) { savedWords = next; onStorageChanged({ knownWords: {} }, "local"); },
@@ -1171,6 +1189,109 @@ test("a failed caption analysis reveals exact-word fallback and releases punctua
   await new Promise(setImmediate);
   assert.equal(punctuation.dataset.cleverReady, "true");
   assert.equal(punctuation.textContent, "...");
+});
+
+test("native word appends hide only new words and preserve the selected word through saving and model completion", async () => {
+  const { createClient } = require("./nlp-client.js");
+  const requests = [];
+  const nlp = createClient((message) => new Promise((resolve) => requests.push({ ...message, resolve })));
+  const app = createPlayer({ knownWords: ["give"], nlp });
+  const [, second] = app.setCaptionRows(["when", " you", " plug", " in"], ["it", " gives"]);
+  await new Promise(setImmediate);
+  requests[0].resolve({ ok: true, tokens: originalModel.analyze(requests[0].text) });
+  await new Promise(setImmediate);
+  const gives = second.querySelector(".clever-subtitle-known");
+  const id = gives.dataset.cleverId;
+  app.hover(gives);
+  const button = app.find(".clever-subtitle-word-button");
+  const appended = new FakeElement(" you");
+  appended.className = "ytp-caption-segment";
+  second.appendChild(appended);
+  app.mutate(second, { addedNodes: [appended] });
+  assert.equal(gives.dataset.cleverId, id);
+  assert.equal(gives.dataset.cleverPending, "false");
+  assert.equal(gives.classList.contains("clever-subtitle-active"), true);
+  assert.equal(button.hidden, false);
+  assert.equal(button.textContent, "−");
+  assert.equal(appended.dataset.cleverReady, "true", "Only the pending words, rather than the whole line, should be hidden");
+  assert.equal(appended.querySelector(".clever-subtitle-unknown").classList.contains("clever-subtitle-pending"), true);
+  assert.equal(appended.textContent, " you");
+  await app.click(button);
+  assert.deepEqual(app.savedWords(), [], "Ready words must remain editable while new words are being analysed");
+  const visible = second.querySelectorAll(".clever-subtitle-unknown").find((word) => word.textContent === "gives");
+  assert.equal(visible.dataset.cleverId, id);
+  assert.equal(visible.dataset.cleverPending, "false");
+  await new Promise(setImmediate);
+  assert.equal(requests.length, 2);
+  requests[1].resolve({ ok: true, tokens: originalModel.analyze(requests[1].text) });
+  await new Promise(setImmediate);
+  assert.equal(appended.querySelector(".clever-subtitle-unknown").dataset.cleverPending, "false");
+  assert.equal(appended.querySelector(".clever-subtitle-unknown").classList.contains("clever-subtitle-pending"), false);
+});
+
+test("a native row roll preserves a touch selection and records only the row that left the screen", async () => {
+  const app = createPlayer({ knownWords: ["like", "give"] });
+  const [, second] = app.setCaptionRows(["He likes her"], ["it gives you"]);
+  const gives = second.querySelector(".clever-subtitle-known");
+  const id = gives.dataset.cleverId;
+  emitTouch(app, "pointerdown", gives, 125, 210);
+  emitTouch(app, "pointerup", gives, 125, 210);
+  const button = app.find(".clever-subtitle-word-button");
+  const next = new FakeElement();
+  next.className = "caption-visual-line";
+  const segment = new FakeElement("1 plus 4");
+  segment.className = "ytp-caption-segment";
+  next.appendChild(segment);
+  app.captions.replaceChildren({ nodes: [second, next] });
+  app.mutate();
+  assert.equal(button.hidden, false);
+  assert.equal(button.title, "Remove “give” from My Vocabulary");
+  assert.equal(second.querySelector(".clever-subtitle-active").dataset.cleverId, id);
+  assert.equal(app.video.pauseCalls, 1);
+  app.click(app.find(".clever-subtitle-review-toggle"));
+  const review = app.find(".clever-subtitle-review-caption");
+  assert.equal(review.textContent, "He likes her");
+  assert.equal(review.querySelector(".clever-subtitle-known").textContent, "likes");
+  app.hover(review.querySelector(".clever-subtitle-known"));
+  await app.click(button);
+  assert.deepEqual(app.savedWords(), ["give"]);
+  assert.equal(review.textContent, "He likes her");
+  assert.equal(review.querySelector(".clever-subtitle-known"), null);
+  app.click(app.find(".clever-subtitle-review-close"));
+  app.setCaptionRows(["it gives you"], ["1 plus 4 plus 9"]);
+  app.click(app.find(".clever-subtitle-review-toggle"));
+  assert.equal(review.textContent, "He likes her", "Appending must not replace the most recently removed row");
+  app.click(app.find(".clever-subtitle-review-close"));
+  app.setCaptionRows(["1 plus 4 plus 9"], ["on and on"]);
+  app.click(app.find(".clever-subtitle-review-toggle"));
+  assert.equal(review.textContent, "it gives you");
+});
+
+test("rolling during model loading finishes the preserved line and frozen history from older snapshots", async () => {
+  const { createClient } = require("./nlp-client.js");
+  const requests = [];
+  const nlp = createClient((message) => new Promise((resolve) => requests.push({ ...message, resolve })));
+  const app = createPlayer({ knownWords: ["like", "give"], nlp });
+  app.setCaptionRows(["He likes her"], ["it gives you"]);
+  await new Promise(setImmediate);
+  app.setCaptionRows(["it gives you"], ["1 plus 4"]);
+  app.click(app.find(".clever-subtitle-review-toggle"));
+  const history = app.find(".clever-subtitle-review-caption");
+  assert.equal(history.textContent, "He likes her");
+  assert.equal(history.querySelector(".clever-subtitle-unknown").dataset.cleverPending, "true");
+  requests[0].resolve({ ok: true, tokens: originalModel.analyze(requests[0].text) });
+  await new Promise(setImmediate);
+  assert.equal(history.querySelector(".clever-subtitle-known").textContent, "likes");
+  assert.equal(app.captions.querySelector(".clever-subtitle-known").textContent, "gives");
+  assert.equal(app.captions.querySelectorAll(".clever-subtitle-unknown")
+    .find((word) => word.textContent === "plus").dataset.cleverPending, "true");
+  assert.equal(requests.length, 2);
+  assert.equal(requests[1].text, "He likes her it gives you 1 plus 4");
+  requests[1].resolve({ ok: true, tokens: originalModel.analyze(requests[1].text) });
+  await new Promise(setImmediate);
+  assert.ok(app.captions.querySelectorAll(".clever-subtitle-unknown")
+    .every((word) => word.dataset.cleverPending === "false"));
+  assert.equal(history.textContent, "He likes her");
 });
 
 test("out-of-order analysis cannot overwrite a newer caption and still updates frozen review", async () => {

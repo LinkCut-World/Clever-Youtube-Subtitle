@@ -19,6 +19,16 @@
     return [...words].sort((a, b) => a.localeCompare(b, "en"));
   }
 
+  function matchWord(text, lemmas, knownWords) {
+    const exact = normalizeWord(text);
+    const exactKnown = Boolean(exact && knownWords.has(exact));
+    const lemmasKnown = Boolean(lemmas.length && lemmas.every((lemma) => knownWords.has(lemma)));
+    const part = { text, hidden: exactKnown || lemmasKnown,
+      addWord: lemmas.length === 1 ? lemmas[0] : exact, lemmas };
+    if (part.hidden) part.removeWord = exactKnown ? exact : lemmas[0];
+    return part;
+  }
+
   function captionPartsForSegments(texts, knownWords, annotations = []) {
     const partsBySegment = [];
     const wordParts = [];
@@ -72,19 +82,11 @@
     }
 
     for (const wordPart of wordParts) {
-      const exact = normalizeWord(wordPart.part.text);
       // Prefer the contextual lemma when one token represents the whole word.
       // A contraction or compound can have several lemmas, so keep its surface form.
-      if (wordPart.lemmas.length === 1) wordPart.part.addWord = wordPart.lemmas[0];
-      const exactKnown = Boolean(exact && knownWords.has(exact));
-      const lemmasKnown = Boolean(wordPart.lemmas.length &&
-        wordPart.lemmas.every((lemma) => knownWords.has(lemma)));
-      wordPart.part.hidden = exactKnown || lemmasKnown;
       // The remove action names an actual saved entry, even when the caption
       // shows an inflected form such as "likes" for the saved word "like".
-      if (wordPart.part.hidden) {
-        wordPart.part.removeWord = exactKnown ? exact : wordPart.lemmas[0];
-      }
+      Object.assign(wordPart.part, matchWord(wordPart.part.text, wordPart.lemmas, knownWords));
     }
     return partsBySegment;
   }
@@ -93,7 +95,7 @@
     return captionPartsForSegments([text], knownWords, annotations)[0];
   }
 
-  const api = { normalizeWord, parseWordList, captionPartsForSegments, captionParts };
+  const api = { normalizeWord, parseWordList, matchWord, captionPartsForSegments, captionParts };
   root.CleverSubtitleWords = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(globalThis);

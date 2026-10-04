@@ -14,7 +14,7 @@ for (const [name, expected] of [
     throw new Error(`Unexpected ${name} hash. Rebuild from the pinned source and update provenance together.`);
   }
 }
-for (const file of ["morphodita/engine.js", "nlp-service.js", "nlp-client.js", "THIRD_PARTY_LICENSES.txt",
+for (const file of ["morphodita/engine.js", "nlp-service.js", "nlp-client.js", "caption-stream.js", "THIRD_PARTY_LICENSES.txt",
   "third-party/MorphoDiTa-MPL-2.0.txt", "third-party/MorphoDiTa-Model-CC-BY-NC-SA-3.0.txt",
   "third-party/MorphoDiTa-Model-README.txt", "third-party/Emscripten-LICENSE.txt"]) {
   if (!fs.existsSync(path.join(root, file))) throw new Error(`Missing runtime or notice: ${file}`);

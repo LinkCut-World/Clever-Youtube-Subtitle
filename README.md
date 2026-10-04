@@ -92,15 +92,24 @@ Revealed words appear faintly. On a touch screen, selecting a word pauses the
 video. The first tap selects the word; the second tap changes My Vocabulary.
 Use YouTube's play button to continue.
 
-The word button shows **…** while reading a word or saving it. **!** means the
+The word button shows **…** while saving a word. **!** means the
 save failed; tap again to retry. Hover over the button to see the word it will
 add or remove.
+
+New captions stay invisible, with their space kept, until word matching is
+ready. Captions that add words one by one keep the words already matched;
+only new words wait. Moving a line up keeps its words and your selected word.
+Later words can give the model more context and change an earlier word's match.
 
 ### Previous caption
 
 Click or tap **↶ Previous caption** to pause and read the last caption. You can
 reveal words and use the same **+ / −** buttons there. Choose **Continue playback**
 when you are ready, or **Close** if the video was already paused.
+
+For captions that add words one by one and scroll, Previous caption shows the
+last full line that left the screen. Adding words does not change this history.
+A line may be part of a sentence.
 
 Drag the **Previous caption** button to move it. After you release it, it moves
 to the closer left or right edge of the video. Seeking, changing videos, or

@@ -19,7 +19,7 @@ $provenanceText = & git -C $projectRoot show "${commit}:morphodita/provenance.js
 if ($LASTEXITCODE -ne 0) { throw 'Could not read runtime provenance.' }
 $provenance = $provenanceText | ConvertFrom-Json
 $files = @(
-  'manifest.json', 'nlp-client.js', 'nlp-service.js', 'morphodita', 'word-utils.js', 'content.js', 'captions.css',
+  'manifest.json', 'nlp-client.js', 'nlp-service.js', 'morphodita', 'word-utils.js', 'caption-stream.js', 'content.js', 'captions.css',
   'popup.html', 'popup.css', 'popup.js', 'options.html', 'options.css', 'options.js', 'vocabulary.js',
   'background.js', 'sync-model.js', 'sync-codec.js', 'sync-git.js', 'sync-access.js', 'git-bundle.js',
   'README.md', 'docs', 'LICENSE', 'THIRD_PARTY_LICENSES.txt', 'GIT_THIRD_PARTY_LICENSES.txt',
@@ -45,7 +45,7 @@ foreach ($browser in @('Chrome', 'Kiwi')) {
       $writer = [IO.StreamWriter]::new($entry.Open(), [Text.UTF8Encoding]::new($false))
       try { $writer.Write(($kiwiManifest | ConvertTo-Json -Depth 20)) } finally { $writer.Dispose() }
     }
-    foreach ($file in @('background.js', 'content.js', 'nlp-client.js', 'nlp-service.js', 'morphodita/engine.js',
+    foreach ($file in @('background.js', 'content.js', 'nlp-client.js', 'nlp-service.js', 'caption-stream.js', 'morphodita/engine.js',
       'README.md', 'THIRD_PARTY_LICENSES.txt', 'third-party/MorphoDiTa-MPL-2.0.txt',
       'third-party/MorphoDiTa-Model-CC-BY-NC-SA-3.0.txt', 'third-party/MorphoDiTa-Model-README.txt')) {
       if (-not $zip.GetEntry($file)) { throw "Missing packaged file: $file" }

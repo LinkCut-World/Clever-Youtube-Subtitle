@@ -73,6 +73,21 @@ test("native row identity disambiguates identical lines and repeated word occurr
   assert.equal(new Set(roll.units.map((unit) => unit.id)).size, 3);
 });
 
+test("history keeps the last two removed rows, freezes their text, and ignores appends and reflows", () => {
+  const stream = createStream({ peek: model.analyze }, words);
+  stream.update(["first row", "second row"]);
+  const first = stream.update(["second row", "third row"]);
+  assert.equal(first.history.text, "first row");
+  assert.equal(stream.update(["second row", "third row grows"]).history, undefined);
+  const second = stream.update(["third row grows", "fourth row"]);
+  assert.equal(second.history.text, "first row\nsecond row");
+  const third = stream.update(["fourth row", "fifth row"]);
+  assert.equal(third.history.text, "second row\nthird row grows");
+  assert.equal(second.history.text, "first row\nsecond row", "A previously opened snapshot must stay frozen");
+  stream.reset();
+  assert.equal(stream.update(["fresh caption"]).history, undefined);
+});
+
 test("reflow and temporary blank gaps preserve occurrences without creating removed lines", () => {
   const stream = createStream({ peek: model.analyze }, words);
   const first = stream.update(["He likes her"]);

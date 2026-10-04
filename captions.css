@@ -1,3 +1,21 @@
+.ytp-caption-segment {
+  /* Native text stays hidden even if YouTube reuses a previously ready node. */
+  visibility: hidden !important;
+}
+
+.ytp-caption-segment .clever-subtitle-output {
+  background-color: inherit;
+  border-radius: inherit;
+}
+
+.ytp-caption-segment .clever-subtitle-known,
+.ytp-caption-segment .clever-subtitle-unknown,
+.ytp-caption-segment .clever-subtitle-text {
+  visibility: visible !important;
+  background-color: inherit;
+  border-radius: inherit;
+}
+
 .ytp-caption-segment:not([data-clever-ready="true"]),
 .clever-subtitle-review-caption:not([data-clever-ready="true"]) {
   /* Keep the original layout, including punctuation, until matching is done. */

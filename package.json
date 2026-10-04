@@ -1,6 +1,6 @@
 {
   "name": "clever-youtube-subtitle",
-  "version": "1.9.3",
+  "version": "1.9.4",
   "private": true,
   "scripts": {
     "build": "node build-nlp.cjs",

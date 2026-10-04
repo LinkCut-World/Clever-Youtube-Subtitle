@@ -34,6 +34,13 @@ model lemmas can change as that context grows; ready words stay rendered while
 new analysis runs. If a frozen row's waiting analysis was dropped, opening it
 finishes its saved context. Whitespace is kept exactly in the page.
 
+Native caption segments always have hidden visibility. Only classified token
+spans restore visibility; unprocessed text in the segment or its output wrapper
+stays hidden even when the ready flag is stale. Styles are registered at
+document start, separately from the DOM
+script. The ready gate also waits for the saved vocabulary. Rolling history
+retains the last two removed rows and preserves their line break.
+
 - Engine: MorphoDiTa 1.11.3, unmodified upstream source.
 - Source commit: `d1617496b2ae7fcb031d5a2e38511d7401c74afc`.
 - Compiler: Emscripten 3.1.73.

@@ -12,6 +12,7 @@
     updateCaptions();
   });
   let knownWords = new Set();
+  let vocabularyReady = false;
   let wordsRevision = 0;
   let nlpRevision = 0;
   let wordButton;
@@ -253,11 +254,11 @@
 
   function renderReviewCaption() {
     if (!reviewedCaption || (reviewRevision === wordsRevision && reviewNlpRevision === nlpRevision)) return;
-    if (reviewedCaption.line) stream.finish(reviewedCaption.line);
-    const parts = reviewedCaption.line
-      ? stream.parts([reviewedCaption.text], knownWords, reviewedCaption.line.units)[0]
+    if (reviewedCaption.lines) for (const line of reviewedCaption.lines) stream.finish(line);
+    const parts = reviewedCaption.lines
+      ? stream.parts([reviewedCaption.text], knownWords, reviewedCaption.lines.flatMap((line) => line.units))[0]
       : partsForCaption([reviewedCaption.text])[0];
-    updateSegment(reviewCaption, parts, Boolean(reviewedCaption.line));
+    updateSegment(reviewCaption, parts, Boolean(reviewedCaption.lines));
     reviewRevision = wordsRevision;
     reviewNlpRevision = nlpRevision;
   }
@@ -273,8 +274,8 @@
       return;
     }
     const key = captionText(texts);
-    if (frame.removed) {
-      previousCaption = { key: frame.removed.text, text: frame.removed.text, line: frame.removed };
+    if (frame.history) {
+      previousCaption = { key: captionText([frame.history.text]), text: frame.history.text, lines: frame.history.lines };
     }
     if (key && !video.seeking) {
       if (key === staleCaptionKey) return;
@@ -356,7 +357,7 @@
   }
 
   function showWordButton(element, fromTouch = false) {
-    if (saving || element.dataset.cleverPending === "true") return;
+    if (!vocabularyReady || saving || element.dataset.cleverPending === "true") return;
     clearTimeout(hideTimer);
     hideTimer = null;
     if (!wordButton) {
@@ -408,42 +409,43 @@
   function updateSegment(segment, parts, streaming = false) {
     const current = segment.textContent || "";
     const previous = originals.get(segment);
-    const wrappedCount = parts.filter((part) => part.hidden || part.addWord || part.pending).length;
-    const existing = [...segment.querySelectorAll(".clever-subtitle-known, .clever-subtitle-unknown, .clever-subtitle-pending")];
+    const wrappedCount = parts.filter((part) => !/^\s+$/u.test(part.text)).length;
+    const existing = [...segment.querySelectorAll(".clever-subtitle-known, .clever-subtitle-unknown, .clever-subtitle-text, .clever-subtitle-pending")];
     const existingCount = existing.length;
     const signature = JSON.stringify(parts);
     // Native, unprocessed segments are hidden by CSS too. Publish the whole
     // segment only after analysis settles; opacity preserves its exact layout.
-    segment.dataset.cleverReady = String(streaming || !parts.some((part) => part.pending));
+    segment.dataset.cleverReady = String(vocabularyReady && (streaming || !parts.some((part) => part.pending)));
 
     // Hidden spans retain their original text, so textContent remains the full
     // YouTube caption. This also lets us detect when YouTube replaces a line.
     if (previous?.original === current &&
         previous.signature === signature &&
-        existingCount === wrappedCount) return;
+        existingCount === wrappedCount && segment.querySelector(".clever-subtitle-output")) return;
 
-    if (wrappedCount === 0) {
-      if (existingCount) segment.textContent = current;
-    } else {
-      const fragment = document.createDocumentFragment();
-      const spans = new Map(existing.filter((span) => span.dataset.cleverId)
-        .map((span) => [span.dataset.cleverId, span]));
-      for (const part of parts) {
-        if (part.hidden || part.addWord || part.pending) {
-          const span = spans.get(part.id) || document.createElement("span");
-          span.className = part.hidden ? "clever-subtitle-known" : part.addWord ? "clever-subtitle-unknown" : "";
-          if (part.pending) span.classList.add("clever-subtitle-pending");
-          span.dataset.cleverWord = part.hidden ? part.removeWord : part.addWord || "";
-          span.dataset.cleverPending = String(Boolean(part.pending));
-          if (part.id) span.dataset.cleverId = part.id;
-          span.textContent = part.text;
-          fragment.appendChild(span);
-        } else {
-          fragment.appendChild(document.createTextNode(part.text));
-        }
+    const fragment = document.createDocumentFragment();
+    const spans = new Map(existing.filter((span) => span.dataset.cleverId)
+      .map((span) => [span.dataset.cleverId, span]));
+    for (const part of parts) {
+      if (!/^\s+$/u.test(part.text)) {
+        const span = spans.get(part.id) || document.createElement("span");
+        span.className = part.hidden ? "clever-subtitle-known" : part.addWord ? "clever-subtitle-unknown" : "clever-subtitle-text";
+        if (part.pending) span.classList.add("clever-subtitle-pending");
+        span.dataset.cleverWord = part.hidden ? part.removeWord : part.addWord || "";
+        span.dataset.cleverPending = String(Boolean(part.pending));
+        if (part.id) span.dataset.cleverId = part.id;
+        span.textContent = part.text;
+        fragment.appendChild(span);
+      } else {
+        fragment.appendChild(document.createTextNode(part.text));
       }
-      segment.replaceChildren(fragment);
     }
+    const output = segment.querySelector(".clever-subtitle-output") || document.createElement("span");
+    output.className = "clever-subtitle-output";
+    output.replaceChildren(fragment);
+    const container = document.createDocumentFragment();
+    container.appendChild(output);
+    segment.replaceChildren(container);
     originals.set(segment, { original: current, signature });
   }
 
@@ -548,11 +550,13 @@
     chrome.storage.local.get(STORAGE_KEY, (result) => {
       if (chrome.runtime.lastError) {
         console.warn("Clever Youtube Subtitle: unable to read My Vocabulary", chrome.runtime.lastError);
+        vocabularyReady = true;
         updateCaptions();
         return;
       }
       const saved = Array.isArray(result[STORAGE_KEY]) ? result[STORAGE_KEY] : [];
       knownWords = new Set(saved.map(normalizeWord).filter(Boolean));
+      vocabularyReady = true;
       wordsRevision += 1;
       updateCaptions();
     });
@@ -563,6 +567,7 @@
   });
 
   function wordAtPoint(target, x, y) {
+    if (!vocabularyReady) return null;
     const direct = target?.closest?.(WORD_SELECTOR);
     if (direct && direct.dataset.cleverPending !== "true") return direct;
     if (!Number.isFinite(x) || !Number.isFinite(y)) return null;

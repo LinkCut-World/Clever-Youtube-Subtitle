@@ -1,4 +1,4 @@
-# v1.9.3
+# v1.9.4
 
 ## Downloads
 
@@ -11,13 +11,12 @@ vocabulary or login details.
 
 ## Changes
 
-- New captions stay invisible while word matching is loading, keeping their space.
-- Captions that add words one by one keep ready words visible while new words wait.
-- Rolling a line up keeps its word matches and the selected word's button.
-- Previous caption records the last full line that left the screen.
-- Later context can update earlier matches using the original MorphoDiTa model.
-- Analysis requests share one active job and one latest waiting snapshot per caption stream.
-- Failed analysis falls back to exact-word matching.
+- Native caption text is hidden by default; only the extension's processed output can appear.
+- Hide captions until both the saved vocabulary and word matching are ready.
+- Keep reused YouTube nodes hidden when native text replaces processed output.
+- Register the caption styles at document start.
+- Previous caption keeps the last two lines that left the screen, with line breaks preserved.
+- Ready words and their buttons still stay available as automatic captions grow.
 
 This version uses the original MorphoDiTa English model in local WASM, introduced
 in v1.9.0. No Python service is needed.

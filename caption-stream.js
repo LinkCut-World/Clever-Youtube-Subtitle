@@ -7,7 +7,7 @@
     prefix.every((value, index) => value === values[index]);
 
   function createStream(nlp, words, changed = () => {}) {
-    let lines = [], recent, streaming = false;
+    let lines = [], recent, streaming = false, history = [];
     let nextId = 0, revision = 0, running, queued, lastText;
     const newWord = (text) => ({ id: String(++nextId), text, ready: false, lemmas: [], revision: 0 });
 
@@ -15,6 +15,7 @@
       lines = [];
       recent = undefined;
       streaming = false;
+      history = [];
       queued = undefined;
       running = undefined;
       lastText = undefined;
@@ -104,7 +105,7 @@
       const oldLines = lines;
       const oldUnits = oldLines.flatMap((line) => line.units);
       const oldWords = oldUnits.map((unit) => unit.text);
-      let kind = "same", removed, units;
+      let kind = "same", removed, units, historyRows;
       if (!incoming.length) {
         // A temporary blank can be a player reflow. Keep history unchanged
         // until a surviving row or the next distinct caption identifies it.
@@ -121,6 +122,8 @@
           const retained = oldLines.slice(dropped).flatMap((line) => line.units);
           if (!startsWith(incoming, retained.map((unit) => unit.text))) continue;
           removed = oldLines[dropped - 1];
+          history = [...history, ...oldLines.slice(0, dropped)].slice(-2);
+          historyRows = history;
           recent = removed;
           units = [...retained, ...incoming.slice(retained.length).map(newWord)];
           streaming = true;
@@ -136,6 +139,7 @@
             if (kind === "append") streaming = true;
           } else {
             removed = streaming ? oldLines.at(-1) : undefined;
+            if (removed) historyRows = [...history, ...oldLines].slice(-2);
             reset();
             units = incoming.map(newWord);
             kind = "replace";
@@ -144,7 +148,9 @@
       }
       lines = partition(texts, units, oldLines, descriptors.map((value) => value.source));
       request();
-      return { kind, streaming, removed, units, lines };
+      const previous = historyRows && { lines: historyRows,
+        text: historyRows.map((line) => line.text).join("\n") };
+      return { kind, streaming, removed, units, lines, history: previous };
     }
 
     function parts(texts, knownWords, units = lines.flatMap((line) => line.units)) {

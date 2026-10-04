@@ -371,7 +371,7 @@ test("caption words keep spacing and can be added or removed from the hover butt
   assert.equal(button.hidden, true);
 });
 
-function createPlayer({ paused = false, knownWords = [], nlp = cachedNLP } = {}) {
+function createPlayer({ paused = false, knownWords = [], nlp = cachedNLP, deferVocabularyRead = false } = {}) {
   const body = new FakeElement();
   const player = new FakeElement();
   player.className = "html5-video-player";
@@ -406,6 +406,7 @@ function createPlayer({ paused = false, knownWords = [], nlp = cachedNLP } = {})
   let onStorageChanged;
   let savedWords = knownWords;
   let onPlayerResize;
+  let vocabularyCallback;
   const context = {
     CleverSubtitleWords: words,
     CleverSubtitleStream: streams,
@@ -445,9 +446,11 @@ function createPlayer({ paused = false, knownWords = [], nlp = cachedNLP } = {})
       },
       storage: {
         local: {
-          get: (_key, callback) => callback
-            ? callback({ knownWords: savedWords })
-            : Promise.resolve({ knownWords: savedWords }),
+          get: (_key, callback) => {
+            if (!callback) return Promise.resolve({ knownWords: savedWords });
+            if (deferVocabularyRead) vocabularyCallback = callback;
+            else callback({ knownWords: savedWords });
+          },
           set: async ({ knownWords: next }) => {
             savedWords = next;
             onStorageChanged({ knownWords: {} }, "local");
@@ -499,6 +502,7 @@ function createPlayer({ paused = false, knownWords = [], nlp = cachedNLP } = {})
     body, player, video, cc, captions, context, documentListeners, windowListeners, setCaption, setCaptionRows, mutate,
     savedWords: () => Array.from(savedWords),
     resizePlayer: () => onPlayerResize?.(),
+    loadVocabulary: () => vocabularyCallback({ knownWords: savedWords }),
     setKnownWords(next) { savedWords = next; onStorageChanged({ knownWords: {} }, "local"); },
     find: (selector) => body.querySelector(selector),
     hover: (element) => documentListeners.mouseover({ target: element }),
@@ -1229,7 +1233,7 @@ test("native word appends hide only new words and preserve the selected word thr
   assert.equal(appended.querySelector(".clever-subtitle-unknown").classList.contains("clever-subtitle-pending"), false);
 });
 
-test("a native row roll preserves a touch selection and records only the row that left the screen", async () => {
+test("native row rolls preserve a touch selection and record the last two rows that left the screen", async () => {
   const app = createPlayer({ knownWords: ["like", "give"] });
   const [, second] = app.setCaptionRows(["He likes her"], ["it gives you"]);
   const gives = second.querySelector(".clever-subtitle-known");
@@ -1264,7 +1268,50 @@ test("a native row roll preserves a touch selection and records only the row tha
   app.click(app.find(".clever-subtitle-review-close"));
   app.setCaptionRows(["1 plus 4 plus 9"], ["on and on"]);
   app.click(app.find(".clever-subtitle-review-toggle"));
-  assert.equal(review.textContent, "it gives you");
+  assert.equal(review.textContent, "He likes her\nit gives you");
+  app.hover(review.querySelectorAll(".clever-subtitle-known").find((word) => word.textContent === "gives"));
+  await app.click(button);
+  assert.deepEqual(app.savedWords(), []);
+  assert.equal(review.textContent, "He likes her\nit gives you");
+  app.click(app.find(".clever-subtitle-review-close"));
+  app.setCaptionRows(["on and on"], ["next words"]);
+  app.click(app.find(".clever-subtitle-review-toggle"));
+  assert.equal(review.textContent, "it gives you\n1 plus 4 plus 9");
+});
+
+test("reusing a ready native node with raw text rebuilds the processed output, including punctuation", () => {
+  const app = createPlayer({ knownWords: ["like"] });
+  for (const text of ["He likes her.", "..."]) {
+    const [segment] = app.setCaption(text);
+    assert.equal(segment.dataset.cleverReady, "true");
+    assert.ok(segment.querySelector(".clever-subtitle-output"));
+    segment.textContent = text;
+    assert.equal(segment.dataset.cleverReady, "true", "YouTube's replacement can leave the old ready flag behind");
+    assert.equal(segment.querySelector(".clever-subtitle-output"), null,
+      "Native replacement has no processed tokens allowed to be visible");
+    app.mutate(segment);
+    assert.ok(segment.querySelector(".clever-subtitle-output"));
+    assert.equal(segment.textContent, text);
+    if (text.includes("likes")) assert.equal(segment.querySelector(".clever-subtitle-known").textContent, "likes");
+    segment.querySelector(".clever-subtitle-output").textContent = text;
+    app.mutate(segment);
+    assert.equal(segment.textContent, text);
+    assert.ok(segment.querySelector(".clever-subtitle-known, .clever-subtitle-unknown, .clever-subtitle-text"),
+      "Replacing only the output's text must restore classified tokens as well");
+  }
+});
+
+test("a ready model cannot reveal a caption before the saved vocabulary finishes loading", () => {
+  const app = createPlayer({ knownWords: ["like"], deferVocabularyRead: true });
+  const [segment] = app.setCaption("He likes her.");
+  assert.equal(segment.dataset.cleverReady, "false");
+  const word = segment.querySelector(".clever-subtitle-unknown");
+  app.hover(word);
+  assert.equal(app.find(".clever-subtitle-word-button"), null);
+  assert.equal(emitTouch(app, "pointerdown", word, 125, 210).blocked, false);
+  app.loadVocabulary();
+  assert.equal(segment.dataset.cleverReady, "true");
+  assert.equal(segment.querySelector(".clever-subtitle-known").textContent, "likes");
 });
 
 test("rolling during model loading finishes the preserved line and frozen history from older snapshots", async () => {

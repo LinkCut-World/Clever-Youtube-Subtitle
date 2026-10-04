@@ -108,8 +108,8 @@ reveal words and use the same **+ / −** buttons there. Choose **Continue playb
 when you are ready, or **Close** if the video was already paused.
 
 For captions that add words one by one and scroll, Previous caption shows the
-last full line that left the screen. Adding words does not change this history.
-A line may be part of a sentence.
+last two lines that left the screen. It shows one line until two are available.
+Adding words does not change this history. A line may be part of a sentence.
 
 Drag the **Previous caption** button to move it. After you release it, it moves
 to the closer left or right edge of the video. Seeking, changing videos, or

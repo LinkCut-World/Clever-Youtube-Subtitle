@@ -1110,7 +1110,7 @@ test("manual playback dismisses review without issuing another play request", ()
   assert.equal(app.video.playCalls, 0);
 });
 
-test("an asynchronous lemma replaces pending spans and keeps the selected word actionable", async () => {
+test("uncached captions keep their text and layout hidden until analysis settles", async () => {
   const { createClient } = require("./nlp-client.js");
   let release;
   const nlp = createClient(async ({ text }) => {
@@ -1119,24 +1119,58 @@ test("an asynchronous lemma replaces pending spans and keeps the selected word a
   });
   const app = createPlayer({ knownWords: ["understand"], nlp });
   const text = "his main focus was on understanding what happens when you plug in a complex value for s.";
-  app.setCaption(text);
+  const [segment] = app.setCaption(text);
+  assert.equal(segment.dataset.cleverReady, "false");
+  assert.equal(segment.textContent, text, "Pending analysis must preserve the original text and spacing");
   const pending = app.captions.querySelectorAll(".clever-subtitle-unknown").find((word) => word.textContent === "understanding");
   app.documentListeners.mouseover({ target: pending });
-  const button = app.find(".clever-subtitle-word-button");
-  assert.equal(button.disabled, true);
-  assert.equal(button.textContent, "…");
-  await app.click(button);
-  assert.deepEqual(app.savedWords(), ["understand"], "Never save a surface form while its analysis is pending");
+  assert.equal(app.find(".clever-subtitle-word-button"), null, "Invisible pending words must not offer vocabulary actions");
+  const tap = emitTouch(app, "pointerdown", pending, 125, 210);
+  assert.equal(tap.blocked, false, "Pending words must not capture the player's touch gesture");
+  assert.equal(app.video.pauseCalls, 0);
+  assert.deepEqual(app.savedWords(), ["understand"]);
   await new Promise(setImmediate);
   release();
   await new Promise(setImmediate);
+  assert.equal(segment.dataset.cleverReady, "true");
   assert.equal(app.captions.textContent, text);
-  assert.equal(app.captions.querySelector(".clever-subtitle-known").textContent, "understanding");
+  const matched = app.captions.querySelector(".clever-subtitle-known");
+  assert.equal(matched.textContent, "understanding");
+  app.hover(matched);
+  const button = app.find(".clever-subtitle-word-button");
   assert.equal(button.hidden, false);
   assert.equal(button.disabled, false);
   assert.equal(button.textContent, "−");
   await app.click(button);
   assert.deepEqual(app.savedWords(), []);
+  const [cachedSegment] = app.setCaption(text);
+  assert.equal(cachedSegment.dataset.cleverReady, "true", "Cached analysis is available on the first render");
+  assert.equal(cachedSegment.querySelector(".clever-subtitle-unknown").textContent, "his");
+});
+
+test("a failed caption analysis reveals exact-word fallback and releases punctuation-only captions", async () => {
+  const { createClient } = require("./nlp-client.js");
+  let requests = 0;
+  const nlp = createClient(async () => {
+    requests++;
+    throw new Error("Word model unavailable");
+  });
+  const app = createPlayer({ knownWords: ["he", "like", "her"], nlp });
+  const [segment] = app.setCaption("He likes her.");
+  assert.equal(segment.dataset.cleverReady, "false");
+  await new Promise(setImmediate);
+  assert.equal(segment.dataset.cleverReady, "true");
+  assert.equal(segment.textContent, "He likes her.");
+  assert.deepEqual(segment.querySelectorAll(".clever-subtitle-known").map((word) => word.textContent), ["He", "her."]);
+  assert.equal(segment.querySelector(".clever-subtitle-unknown").textContent, "likes");
+  app.mutate();
+  await new Promise(setImmediate);
+  assert.equal(requests, 1, "Fallback must settle without a mutation-driven retry loop");
+  const [punctuation] = app.setCaption("...");
+  assert.equal(punctuation.dataset.cleverReady, "false");
+  await new Promise(setImmediate);
+  assert.equal(punctuation.dataset.cleverReady, "true");
+  assert.equal(punctuation.textContent, "...");
 });
 
 test("out-of-order analysis cannot overwrite a newer caption and still updates frozen review", async () => {
@@ -1148,15 +1182,22 @@ test("out-of-order analysis cannot overwrite a newer caption and still updates f
   });
   const app = createPlayer({ knownWords: ["like", "give"], nlp });
   app.setCaption("He likes her.");
-  app.setCaption("it gives you 1");
+  const [current] = app.setCaption("it gives you 1");
   app.click(app.find(".clever-subtitle-review-toggle"));
+  const frozen = app.find(".clever-subtitle-review-caption");
+  assert.equal(current.dataset.cleverReady, "false");
+  assert.equal(frozen.dataset.cleverReady, "false");
   await new Promise(setImmediate);
   releases.get("it gives you 1")();
   await new Promise(setImmediate);
+  assert.equal(current.dataset.cleverReady, "true");
+  assert.equal(frozen.dataset.cleverReady, "false");
   assert.equal(app.captions.textContent, "it gives you 1");
   assert.equal(app.captions.querySelector(".clever-subtitle-known").textContent, "gives");
   releases.get("He likes her.")();
   await new Promise(setImmediate);
+  assert.equal(current.dataset.cleverReady, "true");
+  assert.equal(frozen.dataset.cleverReady, "true");
   assert.equal(app.captions.textContent, "it gives you 1");
   assert.equal(app.captions.querySelector(".clever-subtitle-known").textContent, "gives");
   assert.equal(app.find(".clever-subtitle-review-caption").querySelector(".clever-subtitle-known").textContent, "likes");

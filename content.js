@@ -349,7 +349,7 @@
   }
 
   function showWordButton(element, fromTouch = false) {
-    if (saving) return;
+    if (saving || element.dataset.cleverPending === "true") return;
     clearTimeout(hideTimer);
     hideTimer = null;
     if (!wordButton) {
@@ -403,6 +403,9 @@
     const previous = originals.get(segment);
     const wrappedCount = parts.filter((part) => part.hidden || part.addWord).length;
     const existingCount = segment.querySelectorAll(".clever-subtitle-known, .clever-subtitle-unknown").length;
+    // Native, unprocessed segments are hidden by CSS too. Publish the whole
+    // segment only after analysis settles; opacity preserves its exact layout.
+    segment.dataset.cleverReady = String(!parts.some((part) => part.pending));
 
     // Hidden spans retain their original text, so textContent remains the full
     // YouTube caption. This also lets us detect when YouTube replaces a line.
@@ -535,13 +538,14 @@
 
   function wordAtPoint(target, x, y) {
     const direct = target?.closest?.(WORD_SELECTOR);
-    if (direct) return direct;
+    if (direct && direct.dataset.cleverPending !== "true") return direct;
     if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
 
     let selected = null;
     let bestDistance = Infinity;
     const insideReview = reviewedCaption && pointInside(reviewPanel, x, y);
     for (const element of document.querySelectorAll(WORD_SELECTOR)) {
+      if (element.dataset.cleverPending === "true") continue;
       const reviewWord = reviewCaption?.contains(element);
       if (reviewWord && (!reviewedCaption || !pointInside(reviewCaption, x, y))) continue;
       if (insideReview && !reviewWord) continue;

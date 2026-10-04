@@ -1,3 +1,9 @@
+.ytp-caption-segment:not([data-clever-ready="true"]),
+.clever-subtitle-review-caption:not([data-clever-ready="true"]) {
+  /* Keep the original layout, including punctuation, until matching is done. */
+  opacity: 0 !important;
+}
+
 .ytp-caption-segment .clever-subtitle-known,
 .clever-subtitle-review-caption .clever-subtitle-known {
   opacity: 0 !important;

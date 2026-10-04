@@ -1,4 +1,4 @@
-# v1.9.4
+# v1.9.5
 
 ## Downloads
 
@@ -11,12 +11,11 @@ vocabulary or login details.
 
 ## Changes
 
-- Native caption text is hidden by default; only the extension's processed output can appear.
-- Hide captions until both the saved vocabulary and word matching are ready.
-- Keep reused YouTube nodes hidden when native text replaces processed output.
-- Register the caption styles at document start.
-- Previous caption keeps the last two lines that left the screen, with line breaks preserved.
-- Ready words and their buttons still stay available as automatic captions grow.
+- Restore the full YouTube caption background when known words are hidden.
+- Keep the background visible while word matching is loading.
+- Preserve YouTube's background color, transparency, and rounded corners.
+- Keep native text hidden by default to prevent a full-text flash.
+- The background layer does not intercept word or player clicks.
 
 This version uses the original MorphoDiTa English model in local WASM, introduced
 in v1.9.0. No Python service is needed.

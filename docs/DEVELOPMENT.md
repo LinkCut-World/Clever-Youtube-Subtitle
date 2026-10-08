@@ -43,6 +43,19 @@ document start, separately from the DOM
 script. The ready gate hides only the output text and also waits for the saved vocabulary. Rolling history
 retains the last two removed rows and preserves their line break.
 
+Word selection and known-word visibility are separate states. A mouse hover on
+a known word reveals all known words in both current captions and frozen review.
+A desktop word click pauses and pins its button; leaving the words does not
+clear it. A held reveal lasts until playback resumes. The play event and caption
+history resets clear held interaction state. Previous caption controls retain
+their own pause/close behavior and do not start a reveal. Duplicate pointer and
+touch events from the same press are consumed before interpreting a new word
+action, and touch-generated mouse hover events are ignored.
+On touch screens, the first tap on a hidden word pauses and holds the shared
+reveal without selecting a button. A later tap on any visible or revealed word
+selects its button. Changing that selection or saving vocabulary does not clear
+the held reveal.
+
 - Engine: MorphoDiTa 1.11.3, unmodified upstream source.
 - Source commit: `d1617496b2ae7fcb031d5a2e38511d7401c74afc`.
 - Compiler: Emscripten 3.1.73.

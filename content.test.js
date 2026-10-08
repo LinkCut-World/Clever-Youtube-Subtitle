@@ -146,7 +146,7 @@ test("caption words keep spacing and can be added or removed from the hover butt
       addEventListener(type, listener) { windowListeners[type] = listener; }
     },
     document: {
-      documentElement: {},
+      documentElement: body,
       body,
       addEventListener: (type, listener) => { documentListeners[type] = listener; },
       querySelectorAll: (selector) => selector === ".ytp-caption-segment"
@@ -274,9 +274,9 @@ test("caption words keep spacing and can be added or removed from the hover butt
     stopImmediatePropagation() {}
   });
   assert.equal(touchWasHandled, true);
-  assert.equal(knownLike.classList.contains("clever-subtitle-active"), true);
-  assert.equal(button.textContent, "−");
-  assert.equal(button.title, "Remove “like” from My Vocabulary");
+  assert.equal(knownLike.classList.contains("clever-subtitle-active"), false);
+  assert.equal(body.classList.contains("clever-subtitle-reveal-known"), true);
+  assert.equal(button.hidden, true, "The first tap only reveals known words");
   let touchStartWasBlocked = false;
   windowListeners.touchstart({
     target: playerOverlay,
@@ -293,6 +293,17 @@ test("caption words keep spacing and can be added or removed from the hover butt
     stopImmediatePropagation() {}
   });
   assert.equal(touchEndWasBlocked, true);
+  windowListeners.pointerdown({
+    pointerType: "touch", target: playerOverlay, clientX: 125, clientY: 210,
+    preventDefault() {}, stopImmediatePropagation() {}
+  });
+  windowListeners.pointerup({
+    pointerType: "touch", clientX: 125, clientY: 210,
+    preventDefault() {}, stopImmediatePropagation() {}
+  });
+  assert.equal(knownLike.classList.contains("clever-subtitle-active"), true);
+  assert.equal(button.textContent, "−");
+  assert.equal(button.title, "Remove “like” from My Vocabulary");
   documentListeners.mouseout({ target: knownLike, relatedTarget: null });
   assert.equal(button.hidden, false);
   await button.listeners.click({ preventDefault() {}, stopPropagation() {} });
@@ -335,7 +346,7 @@ test("caption words keep spacing and can be added or removed from the hover butt
   segment.textContent = "A new word";
   onMutation([{ target: segment, addedNodes: [] }]);
   const newWord = segment.querySelectorAll(".clever-subtitle-unknown").find((node) => node.textContent === "word");
-  documentListeners.mouseover({ target: newWord });
+  documentListeners.mouseover({ target: newWord, sourceCapabilities: { firesTouchEvents: false } });
   assert.equal(button.hidden, false);
   let outsideTapWasBlocked = false;
   windowListeners.pointerdown({
@@ -505,7 +516,8 @@ function createPlayer({ paused = false, knownWords = [], nlp = cachedNLP, deferV
     loadVocabulary: () => vocabularyCallback({ knownWords: savedWords }),
     setKnownWords(next) { savedWords = next; onStorageChanged({ knownWords: {} }, "local"); },
     find: (selector) => body.querySelector(selector),
-    hover: (element) => documentListeners.mouseover({ target: element }),
+    hover: (element) => documentListeners.mouseover({ target: element,
+      sourceCapabilities: { firesTouchEvents: false } }),
     click: (element) => element.listeners.click({ preventDefault() {}, stopPropagation() {} })
   };
 }
@@ -643,6 +655,10 @@ test("a covered minus button in Previous caption removes the saved base word exa
   app.click(app.find(".clever-subtitle-review-toggle"));
   const word = app.find(".clever-subtitle-review-caption").querySelector(".clever-subtitle-known");
   word.getClientRects = () => [word.getBoundingClientRect()];
+  emitTouch(app, "touchstart", app.player, 125, 210);
+  emitTouch(app, "touchend", app.player, 125, 210);
+  assert.equal(app.find(".clever-subtitle-word-button"), null, "A hidden word needs a separate selecting tap");
+  assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), true);
   emitTouch(app, "touchstart", app.player, 125, 210);
   emitTouch(app, "touchend", app.player, 125, 210);
   const button = app.find(".clever-subtitle-word-button");
@@ -887,10 +903,16 @@ test("touching a current caption word pauses playback for both touch event paths
       assert.equal(app.video.paused, true);
       assert.equal(app.video.pauseCalls, 1);
       assert.equal(app.video.currentTime, 24);
-      assert.equal(word.classList.contains("clever-subtitle-active"), true);
+      assert.equal(word.classList.contains("clever-subtitle-active"), !knownWords.length);
       const button = app.find(".clever-subtitle-word-button");
-      assert.equal(button.hidden, false);
-      assert.equal(button.textContent, knownWords.length ? "−" : "+");
+      if (knownWords.length) {
+        assert.equal(button, null);
+        assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), true);
+      } else {
+        assert.equal(button.hidden, false);
+        assert.equal(button.textContent, "+");
+        assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), false);
+      }
       assert.deepEqual(app.savedWords(), knownWords);
     }
   }
@@ -934,7 +956,6 @@ test("desktop hover and outside touches preserve playback while resuming clears 
   const [segment] = app.setCaption("A curious word");
   const word = segment.querySelectorAll(".clever-subtitle-unknown")[1];
   app.hover(word);
-  app.windowListeners.pointerdown({ pointerType: "mouse", target: word });
   assert.equal(app.video.paused, false);
   app.windowListeners.pointerdown({
     pointerType: "touch", target: app.player, clientX: 900, clientY: 100,
@@ -952,6 +973,215 @@ test("desktop hover and outside touches preserve playback while resuming clears 
   app.video.play();
   assert.equal(button.hidden, true);
   assert.equal(word.classList.contains("clever-subtitle-active"), false);
+});
+
+test("desktop hover reveals all known words across both captions and leaves playback alone", async () => {
+  const app = createPlayer({ knownWords: ["he", "like", "give"] });
+  app.setCaption("He likes her");
+  const [segment] = app.setCaption("It gives you");
+  const gives = segment.querySelector(".clever-subtitle-known");
+  app.hover(gives);
+  const button = app.find(".clever-subtitle-word-button");
+  assert.equal(button.textContent, "−");
+  assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), true);
+  assert.equal(app.video.paused, false);
+  assert.equal(app.video.pauseCalls, 0);
+  app.documentListeners.mouseout({ target: gives, relatedTarget: null });
+  await new Promise((resolve) => setTimeout(resolve, 270));
+  assert.equal(button.hidden, true);
+  assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), false);
+
+  app.click(app.find(".clever-subtitle-review-toggle"));
+  assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), false,
+    "Opening Previous caption must not reveal any hidden words");
+  const review = app.find(".clever-subtitle-review-caption");
+  app.hover(review.querySelector(".clever-subtitle-known"));
+  assert.equal(app.body.querySelectorAll(".clever-subtitle-known").length, 3);
+  assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), true);
+  assert.equal(app.video.pauseCalls, 1, "Hovering in review must not change playback");
+  app.hover(segment.querySelector(".clever-subtitle-unknown"));
+  assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), false);
+  assert.equal(button.textContent, "+");
+  assert.equal(app.video.pauseCalls, 1);
+});
+
+test("desktop word clicks pause and pin through mouse leave, other hovers and native reflow", () => {
+  for (const location of ["current", "review"]) {
+    for (const known of [false, true]) {
+      for (const covered of [false, true]) {
+        const app = createPlayer({ knownWords: known ? ["he", "like"] : ["he"] });
+        let [caption] = app.setCaption("He likes her");
+        if (location === "review") {
+          app.setCaption("Next caption");
+          app.click(app.find(".clever-subtitle-review-toggle"));
+          caption = app.find(".clever-subtitle-review-caption");
+        }
+        const wordsInCaption = caption.querySelectorAll(".clever-subtitle-known, .clever-subtitle-unknown");
+        const likes = wordsInCaption[1];
+        likes.getClientRects = () => [likes.getBoundingClientRect()];
+        const target = covered ? app.player : likes;
+        const mouse = { pointerType: "mouse", button: 0 };
+        assert.equal(emitTouch(app, "pointerdown", target, 125, 210, mouse).blocked, true);
+        assert.equal(emitTouch(app, "pointerup", target, 125, 210, mouse).blocked, true);
+        assert.equal(emitTouch(app, "click", target, 125, 210, { ...mouse, detail: 1 }).blocked, true);
+        const button = app.find(".clever-subtitle-word-button");
+        assert.equal(app.video.paused, true);
+        assert.equal(app.video.pauseCalls, 1);
+        assert.equal(app.video.currentTime, 24);
+        assert.equal(button.hidden, false);
+        assert.equal(button.textContent, known ? "−" : "+");
+        assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), known);
+        app.documentListeners.mouseout({ target: likes, relatedTarget: null });
+        app.hover(wordsInCaption[2]);
+        assert.equal(button.hidden, false);
+        assert.equal(caption.querySelector(".clever-subtitle-active").textContent, "likes",
+          "Hovering another word must not replace the clicked word");
+        if (location === "current") {
+          app.setCaption("He likes", "her");
+          assert.equal(button.hidden, false);
+          assert.equal(app.find(".clever-subtitle-active").textContent, "likes");
+          app.context.document.fullscreenElement = app.player;
+          app.documentListeners.fullscreenchange();
+          assert.equal(button.hidden, false);
+          assert.equal(button.parentElement, app.player);
+        }
+        app.video.play();
+        assert.equal(button.hidden, true);
+        assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), false);
+        assert.equal(app.find(".clever-subtitle-active"), null);
+      }
+    }
+  }
+});
+
+test("a pinned desktop button stays selected after add and remove in either caption", async () => {
+  for (const location of ["current", "review"]) {
+    for (const known of [false, true]) {
+      const app = createPlayer({ knownWords: known ? ["he", "like"] : ["he"] });
+      let [caption] = app.setCaption("He likes her");
+      if (location === "review") {
+        app.setCaption("Next caption");
+        app.click(app.find(".clever-subtitle-review-toggle"));
+        caption = app.find(".clever-subtitle-review-caption");
+      }
+      const likes = caption.querySelectorAll(".clever-subtitle-known, .clever-subtitle-unknown")[1];
+      const mouse = { pointerType: "mouse", button: 0 };
+      emitTouch(app, "pointerdown", likes, 125, 210, mouse);
+      emitTouch(app, "pointerup", likes, 125, 210, mouse);
+      emitTouch(app, "click", likes, 125, 210, { ...mouse, detail: 1 });
+      const button = app.find(".clever-subtitle-word-button");
+      await app.click(button);
+      assert.deepEqual(app.savedWords(), known ? ["he"] : ["he", "like"]);
+      assert.equal(button.hidden, false);
+      assert.equal(button.textContent, known ? "+" : "−");
+      assert.equal(caption.querySelector(".clever-subtitle-active").textContent, "likes");
+      assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), known,
+        "Saving a previously visible word must not reveal all known words");
+      await app.click(button);
+      assert.deepEqual(app.savedWords(), known ? ["he", "like"] : ["he"]);
+      assert.equal(button.hidden, false);
+      assert.equal(button.textContent, known ? "−" : "+");
+      assert.equal(app.video.paused, true);
+      assert.equal(app.video.playCalls, 0);
+      app.video.play();
+      assert.equal(button.hidden, true);
+      assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), false);
+    }
+  }
+});
+
+test("mobile hidden-word taps reveal both captions before a separate visible-word tap selects a button", () => {
+  for (const location of ["current", "review"]) {
+    for (const paths of [["pointer"], ["touch"], ["pointer", "touch"]]) {
+      const app = createPlayer({ knownWords: ["he", "like", "give"] });
+      app.setCaption("He likes her");
+      const [segment] = app.setCaption("It gives you");
+      app.click(app.find(".clever-subtitle-review-toggle"));
+      const review = app.find(".clever-subtitle-review-caption");
+      const likes = review.querySelectorAll(".clever-subtitle-known")[1];
+      const gives = segment.querySelector(".clever-subtitle-known");
+      gives.getBoundingClientRect = () => ({ left: 700, top: 430, right: 750, bottom: 450, width: 50, height: 20 });
+      gives.getClientRects = () => [gives.getBoundingClientRect()];
+      likes.getClientRects = () => [likes.getBoundingClientRect()];
+      const first = location === "current" ? gives : likes;
+      const second = location === "current" ? likes : gives;
+      const tap = (word) => {
+        const rect = word.getBoundingClientRect();
+        const x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
+        for (const path of paths) {
+          assert.equal(emitTouch(app, path === "pointer" ? "pointerdown" : "touchstart", app.player, x, y).blocked, true);
+        }
+        for (const path of paths) emitTouch(app, path === "pointer" ? "pointerup" : "touchend", app.player, x, y);
+        assert.equal(emitTouch(app, "click", app.player, x, y, { detail: 1 }).blocked, true);
+      };
+      assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), false);
+      tap(first);
+      assert.equal(app.video.paused, true);
+      assert.equal(app.video.pauseCalls, 1);
+      assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), true);
+      assert.equal(app.body.querySelectorAll(".clever-subtitle-known").length, 3);
+      assert.equal(app.find(".clever-subtitle-word-button"), null,
+        "The first tap must not create a word button, even with duplicate event paths");
+      app.documentListeners.mouseover({ target: first, sourceCapabilities: { firesTouchEvents: true } });
+      app.documentListeners.mouseover({ target: first });
+      assert.equal(app.find(".clever-subtitle-word-button"), null,
+        "Touch-generated mouse hover events must not select the revealed word");
+      tap(second);
+      const button = app.find(".clever-subtitle-word-button");
+      assert.equal(button.hidden, false);
+      assert.equal(button.textContent, "−");
+      assert.equal(app.find(".clever-subtitle-active"), second);
+      assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), true);
+      const you = segment.querySelectorAll(".clever-subtitle-unknown")[1];
+      you.getBoundingClientRect = () => ({ left: 800, top: 430, right: 850, bottom: 450, width: 50, height: 20 });
+      you.getClientRects = () => [you.getBoundingClientRect()];
+      tap(you);
+      assert.equal(button.textContent, "+");
+      assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), true,
+        "Selecting a different visible word must not cancel the held reveal");
+      assert.equal(app.video.pauseCalls, 1);
+      assert.deepEqual(app.savedWords(), ["he", "like", "give"]);
+      app.video.play();
+      assert.equal(button.hidden, true);
+      assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), false);
+      assert.equal(app.find(".clever-subtitle-review-panel").hidden, true);
+      tap(gives);
+      assert.equal(button.hidden, true, "After resuming, a known word again needs a first reveal tap");
+      assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), true);
+      assert.equal(app.video.pauseCalls, 2);
+    }
+  }
+});
+
+test("mobile reveal-only taps pause a playing video once and keep word changes separate", async () => {
+  const app = createPlayer({ knownWords: ["he", "like"] });
+  const [caption] = app.setCaption("He likes her");
+  const likes = caption.querySelectorAll(".clever-subtitle-known")[1];
+  emitTouch(app, "pointerdown", likes, 125, 210);
+  emitTouch(app, "touchstart", likes, 125, 210);
+  emitTouch(app, "pointerup", likes, 125, 210);
+  emitTouch(app, "touchend", likes, 125, 210);
+  assert.equal(app.video.pauseCalls, 1);
+  assert.equal(app.find(".clever-subtitle-word-button"), null);
+  assert.deepEqual(app.savedWords(), ["he", "like"]);
+  emitTouch(app, "pointerdown", likes, 125, 210);
+  emitTouch(app, "pointerup", likes, 125, 210);
+  const button = app.find(".clever-subtitle-word-button");
+  assert.equal(button.textContent, "−");
+  assert.deepEqual(app.savedWords(), ["he", "like"]);
+  const rect = button.getBoundingClientRect();
+  const x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
+  emitTouch(app, "pointerdown", app.player, x, y);
+  emitTouch(app, "touchstart", app.player, x, y);
+  emitTouch(app, "pointerup", app.player, x, y);
+  emitTouch(app, "touchend", app.player, x, y);
+  await new Promise(setImmediate);
+  emitTouch(app, "click", button, x, y, { detail: 1 });
+  assert.deepEqual(app.savedWords(), ["he"]);
+  assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), true);
+  assert.equal(app.video.paused, true);
+  app.video.play();
+  assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), false);
 });
 
 test("touching an already paused caption keeps the existing pause", () => {
@@ -1086,10 +1316,14 @@ test("touch review words require a separate tap to change vocabulary and keep th
 
 test("seeking, disabling captions and navigation discard stale review without resuming", () => {
   for (const action of ["seek", "disable", "navigate"]) {
-    const app = createPlayer();
+    const app = createPlayer({ knownWords: ["sentence"] });
     app.setCaption("First sentence");
     app.setCaption("Second sentence");
     app.click(app.find(".clever-subtitle-review-toggle"));
+    const word = app.find(".clever-subtitle-review-caption").querySelector(".clever-subtitle-known");
+    emitTouch(app, "pointerdown", word, 125, 210, { pointerType: "mouse", button: 0 });
+    emitTouch(app, "pointerup", word, 125, 210, { pointerType: "mouse", button: 0 });
+    assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), true);
     if (action === "seek") {
       app.video.seeking = true;
       app.video.listeners.seeking({ type: "seeking" });
@@ -1101,6 +1335,8 @@ test("seeking, disabling captions and navigation discard stale review without re
     }
     assert.equal(app.find(".clever-subtitle-review").hidden, true, action);
     assert.equal(app.find(".clever-subtitle-review-panel").hidden, true, action);
+    assert.equal(app.find(".clever-subtitle-word-button").hidden, true, action);
+    assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), false, action);
     assert.equal(app.video.playCalls, 0, action);
   }
 });
@@ -1238,6 +1474,8 @@ test("native row rolls preserve a touch selection and record the last two rows t
   const [, second] = app.setCaptionRows(["He likes her"], ["it gives you"]);
   const gives = second.querySelector(".clever-subtitle-known");
   const id = gives.dataset.cleverId;
+  emitTouch(app, "pointerdown", gives, 125, 210);
+  emitTouch(app, "pointerup", gives, 125, 210);
   emitTouch(app, "pointerdown", gives, 125, 210);
   emitTouch(app, "pointerup", gives, 125, 210);
   const button = app.find(".clever-subtitle-word-button");

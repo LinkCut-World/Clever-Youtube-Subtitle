@@ -82,15 +82,31 @@ open captions right away.
 
 ## While watching
 
-| Action | Mouse | Touch screen |
-| --- | --- | --- |
-| Reveal a hidden word | Hover over its place | Tap its place |
-| Add a visible word | Hover, then click **+** | Tap the word, lift your finger, then tap **+** |
-| Remove a hidden word | Reveal it, then click **−** | Reveal it, lift your finger, then tap **−** |
+These actions work in both the current captions and the **Previous caption**
+panel. Revealed words appear faintly, at **35% opacity**, and keep their space.
 
-Revealed words appear faintly. On a touch screen, selecting a word pauses the
-video. The first tap selects the word; the second tap changes My Vocabulary.
-Use YouTube's play button to continue.
+### Mouse
+
+- **Hover over a word:** show its **+ / −** button. If the word is hidden, show
+  **all hidden words** faintly, including words in the Previous caption panel.
+  Hovering does not play or pause the video.
+- **Click a word:** pause the video and keep its button in place, even after you
+  move the mouse away. Clicking a hidden word also keeps all hidden words
+  faintly visible. Play the video again to clear this state.
+- **Click + or −:** add or remove the word in My Vocabulary. A button kept by
+  clicking a word stays in place after saving.
+
+### Touch screen
+
+- **Tap a hidden word:** pause the video and show **all hidden words** faintly,
+  including words in the Previous caption panel. This first tap does not show
+  a word button.
+- **Tap a visible or faint word:** pause the video and show its **+ / −** button.
+- **Lift your finger, then tap + or −:** add or remove the word in My Vocabulary.
+
+On a touch screen, faint words stay visible while you choose other words or
+change My Vocabulary. Play the video again to hide them and clear the selected
+word. Use YouTube's play button to continue.
 
 The word button shows **…** while saving a word. **!** means the
 save failed; tap again to retry. Hover over the button to see the word it will
@@ -106,6 +122,8 @@ Later words can give the model more context and change an earlier word's match.
 Click or tap **↶ Previous caption** to pause and read the last caption. You can
 reveal words and use the same **+ / −** buttons there. Choose **Continue playback**
 when you are ready, or **Close** if the video was already paused.
+Opening the panel does not reveal hidden words. Click or tap **Previous caption**
+again to close it; playback resumes only if opening the panel paused it.
 
 For captions that add words one by one and scroll, Previous caption shows the
 last two lines that left the screen. It shows one line until two are available.

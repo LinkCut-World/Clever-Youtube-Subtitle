@@ -36,10 +36,8 @@
   cursor: pointer;
 }
 
-.ytp-caption-segment .clever-subtitle-known:hover,
-.ytp-caption-segment .clever-subtitle-known.clever-subtitle-active,
-.clever-subtitle-review-caption .clever-subtitle-known:hover,
-.clever-subtitle-review-caption .clever-subtitle-known.clever-subtitle-active {
+.clever-subtitle-reveal-known .ytp-caption-segment .clever-subtitle-known,
+.clever-subtitle-reveal-known .clever-subtitle-review-caption .clever-subtitle-known {
   opacity: 0.35 !important;
 }
 

@@ -1,4 +1,4 @@
-# v1.9.5
+# v1.9.6
 
 ## Downloads
 
@@ -11,11 +11,20 @@ vocabulary or login details.
 
 ## Changes
 
-- Restore the full YouTube caption background when known words are hidden.
-- Keep the background visible while word matching is loading.
-- Preserve YouTube's background color, transparency, and rounded corners.
-- Keep native text hidden by default to prevent a full-text flash.
-- The background layer does not intercept word or player clicks.
+- Hovering over a hidden word on a computer shows all hidden words faintly,
+  including words in the Previous caption panel. Hovering does not affect playback.
+- Clicking a word on a computer pauses the video and keeps its word button
+  visible after the mouse leaves. Clicking a hidden word also keeps all hidden
+  words faintly visible until playback resumes.
+- On a phone, the first tap on a hidden word pauses the video and reveals all
+  hidden words at 35% opacity, without showing a word button. Tap a visible or
+  faint word to show its + / − button, then tap the button to change My Vocabulary.
+- A held reveal stays visible while choosing other words or saving vocabulary.
+  Playing the video again clears held word buttons and hides the revealed words.
+- Previous caption keeps its existing pause, close, and drag behavior. Opening
+  it does not start a reveal.
+- Prevent duplicate touch events and touch-generated hover events from treating
+  one tap as both a reveal and a word selection.
 
 This version uses the original MorphoDiTa English model in local WASM, introduced
 in v1.9.0. No Python service is needed.

@@ -43,12 +43,19 @@ document start, separately from the DOM
 script. The ready gate hides only the output text and also waits for the saved vocabulary. Rolling history
 retains the last two removed rows and preserves their line break.
 
-Word selection and known-word visibility are separate states. A mouse hover on
-a known word reveals all known words in both current captions and frozen review.
-A desktop word click pauses and pins its button; leaving the words does not
-clear it. A held reveal lasts until playback resumes. The play event and caption
-history resets clear held interaction state. Previous caption controls retain
-their own pause/close behavior and do not start a reveal. Duplicate pointer and
+`caption-interaction.js` stores separate hovered, selected, and mobile reveal-only
+word occurrences. The button follows the hovered word if present, otherwise the
+selected word; the dictionary card always follows the selected word. Leaving a
+hover restores the selection. A click replaces the selection and its reveal
+intent, so choosing a fully visible word cancels an earlier known-word reveal.
+A mobile reveal-only tap has no button or dictionary request; tapping a faint
+word then selects it. Vocabulary saves update membership and symbols without
+inventing another word gesture or dismissing the selected word. Each occurrence
+is independently rebound after caption reflow; losing one does not lose the
+other. The play event and caption history resets clear all interaction state.
+Previous caption controls retain their own pause/close behavior and do not start
+a reveal. Closing review clears only its word occurrences unless it also resumes
+playback. Duplicate pointer and
 touch events from the same press are consumed before interpreting a new word
 action, and touch-generated mouse hover events are ignored.
 On touch screens, the first tap on a hidden word pauses and holds the shared
@@ -84,6 +91,82 @@ The build script updates provenance hashes and copies the original license notic
 
 ## Installation packages
 
+### Optional offline dictionaries
+
+`dictionary.js` performs exact dictionary lookups with the existing contextual
+lemma first and the surface word as a fallback. It adds no lemmatization rules.
+The background worker reads installed IndexedDB shards, caches at most four
+shards, and shares them across tabs. `word-meaning.js` discards old responses
+when another word or language is selected, or playback/selection clears the card.
+The word card does not run on hover or on a mobile reveal-only tap.
+
+No dictionaries are bundled or auto-downloaded. `dictionary-manager.js` runs
+downloads/imports in a visible extension page. `dictionary-packs.js` verifies
+official SQLite size, SHA-256, and the SQLite header against `dictionary-catalog.js`.
+`wikdict-client.js` transfers the bytes to a short-lived worker. `wikdict-worker.js`
+loads the bundled sql.js runtime, adapts the original SQLite data using
+`wikdict-sqlite.js`, and writes to IndexedDB. It posts progress/metadata only and
+is terminated when it finishes, releasing the SQL heap. Normal caption lookup
+never loads SQLite. `dictionary-store.js` installs or removes all 128 shards
+and metadata in a single IndexedDB transaction. A failed replacement retains the
+old version. A nonsecret storage marker refreshes live cards; the background also
+checks installed metadata before using cached shards. The catalog is delivered
+with extension updates. Nothing adds a dictionary background update alarm.
+
+Regenerate the official download catalog with `npm run build:dictionaries`.
+Pinned original SQLite URLs, sizes, hashes, and word counts live in
+`dictionary-sources.json`. No data file is created, hosted by this project, or
+attached to its release. Download and Get file both use `download.wikdict.com`.
+Imports accept the same official `.sqlite3` files. The manager and included
+notices provide attribution and the CC BY-SA 4.0 terms. Python is not required.
+Use `npm run build:sqlite` to copy the pinned sql.js 1.14.2 JS/WASM assets and
+MIT license from the npm dependency. Preserve their bytes; `npm run build`
+verifies the hashes in `sqlite/provenance.json`.
+All English-source pairs in the pinned upstream directory are represented in
+`dictionary-sources.json`. Offline languages are derived from the generated
+catalog, so the manager and settings cannot drift into separate five-language
+lists. The manager searches English/native names, language codes, and the
+browser's localized language name, with accent and case folding.
+Raw databases are cached under ignored `dist/dictionary-source/`.
+The conversion prefers rows linked to an English lexical entry. Unlinked reverse
+translations are a fallback only when no linked row is available for a headword.
+No particular word or translation is overridden. Grammar labels use the chosen
+dictionary language. Source and license details stay in settings and notices,
+without a footer in the small word card.
+
+### Microsoft Dictionary Lookup
+
+`microsoft-dictionary.js` calls only the official international v3.0
+`dictionary/lookup` endpoint. It queries the contextual lemma first and uses
+the surface as a fallback when the lemma is absent. It normalizes POS tags,
+sorts by Microsoft's confidence field, deduplicates display translations,
+and returns at most three. It requests no examples or sentence translations.
+The 49 target language codes in `dictionary.js` come from Microsoft's public
+`languages?api-version=3.0&scope=dictionary` response on 2026-10-08.
+
+`dictionary-service.js` selects the provider in the background. A bounded
+512-item, 12-hour memory cache shares duplicate queries between tabs while the
+worker is alive; it is not a dictionary download and is lost when the worker
+is discarded. Errors are not cached. The HTTP request has a 12-second timeout,
+omits cookies, rejects redirects, and sends the key only in an authentication
+header. Key or region changes invalidate the cache. Save checks bypass the cache.
+
+`dictionary-settings.js` obtains no saved secret from the background status
+message. It requests Microsoft host access on the save button's user gesture,
+checks a real word before committing settings, and clears a newly entered key
+after success. Credentials live only in `chrome.storage.local`, under
+`microsoftDictionaryConfig`; Git and TXT vocabulary operations never read that
+key. Settings messages are allowed only from the extension's settings/manager
+pages; key removal is restricted to `options.html`. Stored language/provider/key
+and pack changes refresh a selected card and discard its old response. The
+Azure guide switches the portal to English before naming menus. The Kiwi
+package includes Microsoft and dictionary download origins even when Git server
+permissions are restricted.
+
+To package the current files without making a commit, run
+`./package-release.ps1 -WorkingTree`. These ZIPs have `-local` in their names
+and are for local testing; this command does not commit, push, or publish.
+
 On Windows, package a committed version:
 
 ```powershell
@@ -95,7 +178,7 @@ contain committed runtime files, documentation, and required licenses. They do
 not include private vocabulary, credentials, development dependencies, or lab
 experiments. The package script verifies model and runtime hashes inside each ZIP.
 
-The Chrome manifest keeps Git servers as optional host permissions. The Kiwi
+The Chrome manifest keeps servers as optional host permissions. The Kiwi
 manifest requests HTTP/HTTPS host permissions at installation. To limit the
 Kiwi package to your own server:
 
@@ -111,9 +194,13 @@ Update `manifest.json`, `package.json`, and `package-lock.json` together, and wr
 the version's notes in `RELEASE_NOTES.md`. Commit the changes, then push a matching
 tag, such as `v1.9.2`. Push the branch first, then push the tag.
 
-The **Release** GitHub Actions workflow checks out that tag, verifies the bundled
-runtime, builds both packages, attaches them and their checksums to a draft
-GitHub Release, and then publishes it. It uses GitHub's temporary workflow token;
+The **Release** GitHub Actions workflow checks out that tag, installs development
+dependencies, regenerates the official dictionary catalog and SQLite reader,
+checks that the catalog matches the committed one, verifies the word model, and
+runs all tests. It builds both installation ZIPs and attaches them and their
+checksum file to a draft release, then publishes it. Dictionary data comes
+directly from WikDict and is not uploaded by this workflow.
+It uses GitHub's temporary workflow token;
 no personal access token needs to be stored in the repository.
 
 To publish an existing tag again after an interrupted run, open the **Release**

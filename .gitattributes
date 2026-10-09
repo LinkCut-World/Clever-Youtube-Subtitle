@@ -3,3 +3,4 @@ morphodita/morphodita.js -text -whitespace
 *.wasm -text
 *.tagger -text
 third-party/* -whitespace
+sqlite/sql-wasm.js -text -whitespace

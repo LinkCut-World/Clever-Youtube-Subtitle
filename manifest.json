@@ -1,15 +1,21 @@
 {
   "manifest_version": 3,
   "name": "Clever Youtube Subtitle",
-  "version": "1.9.6",
+  "version": "1.10.0",
   "description": "Hide words you know in YouTube captions. Hover or tap to see and change words.",
-  "permissions": ["storage", "alarms"],
-  "optional_host_permissions": ["https://*/*", "http://*/*"],
+  "permissions": [
+    "storage",
+    "alarms"
+  ],
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ],
   "background": {
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "My Vocabulary",
+    "default_title": "Settings",
     "default_popup": "popup.html"
   },
   "options_page": "options.html",
@@ -18,13 +24,30 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://www.youtube.com/*", "https://m.youtube.com/*"],
-      "css": ["captions.css"],
+      "matches": [
+        "https://www.youtube.com/*",
+        "https://m.youtube.com/*"
+      ],
+      "css": [
+        "captions.css"
+      ],
       "run_at": "document_start"
     },
     {
-      "matches": ["https://www.youtube.com/*", "https://m.youtube.com/*"],
-      "js": ["nlp-client.js", "word-utils.js", "caption-stream.js", "content.js"],
+      "matches": [
+        "https://www.youtube.com/*",
+        "https://m.youtube.com/*"
+      ],
+      "js": [
+        "nlp-client.js",
+        "word-utils.js",
+        "dictionary-catalog.js",
+        "dictionary.js",
+        "word-meaning.js",
+        "caption-interaction.js",
+        "caption-stream.js",
+        "content.js"
+      ],
       "run_at": "document_idle"
     }
   ]

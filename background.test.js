@@ -5,6 +5,60 @@ const vm = require("node:vm");
 const { webcrypto } = require("node:crypto");
 const model = require("./sync-model.js");
 
+test("Microsoft configuration is restricted to settings; caption replies and vocabulary never include its key", async () => {
+  const data = { knownWords: ["like"] }, calls = [];
+  let listener;
+  const context = {
+    URL, Response, AbortController, setTimeout, clearTimeout, Uint8Array, crypto: webcrypto,
+    async fetch(url, options) {
+      calls.push({ url, options });
+      return new Response(JSON.stringify([{ translations: [{ displayTarget: "危险", posTag: "ADJ", confidence: 0.8 }] }]));
+    },
+    chrome: {
+      runtime: { id: "test", getURL: (path) => `chrome-extension://test/${path}`,
+        onMessage: { addListener(callback) { listener = callback; } },
+        onStartup: { addListener() {} }, onInstalled: { addListener() {} } },
+      permissions: { contains: async () => true },
+      storage: { local: {
+        async get(keys) { return Object.fromEntries(keys.map((key) => [key, data[key]])); },
+        async set(changes) { Object.assign(data, changes); }
+      } },
+      alarms: { get: async () => null, create() {}, onAlarm: { addListener() {} } }
+    },
+    importScripts(...paths) {
+      for (const path of paths) if (path !== "git-bundle.js") vm.runInContext(fs.readFileSync(path, "utf8"), context);
+    }
+  };
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync("background.js", "utf8"), context);
+  const send = (message, sender = { id: "test", url: "https://www.youtube.com/watch?v=test" }) =>
+    new Promise((resolve) => listener(message, sender, resolve));
+  const settings = { type: "dictionary:configure", provider: "microsoft", language: "zh-Hans",
+    key: "test-key-never-publish", region: "global", word: "perilous" };
+  assert.equal((await send(settings)).ok, false);
+  assert.equal(calls.length, 0);
+  const saved = await send(settings, { id: "test", url: "chrome-extension://test/options.html?from=popup" });
+  assert.equal(saved.ok, true, saved.error);
+  assert.equal(saved.result.entries[0].translations[0], "危险");
+  assert.equal(calls.length, 1);
+  assert.deepEqual(JSON.parse(calls[0].options.body), [{ Text: "perilous" }]);
+  assert.equal(calls[0].options.headers["Ocp-Apim-Subscription-Key"], settings.key);
+  assert.ok(!JSON.stringify(saved).includes(settings.key));
+  const status = await send({ type: "dictionary:status" });
+  assert.equal(status.hasKey, true);
+  assert.ok(!JSON.stringify(status).includes(settings.key));
+  const meaning = await send({ type: "dictionary:lookup", word: "perilous", language: "zh-Hans" });
+  assert.equal(meaning.ok, true);
+  assert.ok(!JSON.stringify(meaning).includes(settings.key));
+  const vocabulary = await send({ type: "vocab:get" });
+  assert.deepEqual(Array.from(vocabulary.words), ["like"]);
+  assert.ok(!JSON.stringify(data.syncState).includes(settings.key));
+  assert.equal((await send({ type: "dictionary:forget-key" })).ok, false);
+  assert.equal(data.microsoftDictionaryConfig.key, settings.key);
+  assert.equal((await send({ type: "dictionary:forget-key" }, { id: "test", url: "chrome-extension://test/options.html" })).ok, true);
+  assert.equal(data.microsoftDictionaryConfig, null);
+});
+
 test("background records edits and keeps local edits responsive during Git sync", async () => {
   const data = { knownWords: ["like"] };
   let listener;

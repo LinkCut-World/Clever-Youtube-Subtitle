@@ -17,7 +17,7 @@ permissions:
 jobs:
   release:
     runs-on: windows-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     defaults:
       run:
         shell: pwsh
@@ -33,7 +33,17 @@ jobs:
         run: |
           $version = (Get-Content -Raw manifest.json | ConvertFrom-Json).version
           if ($env:RELEASE_TAG -ne "v$version") { throw 'Tag and manifest version differ.' }
+          npm ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run build:dictionaries
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run build:sqlite
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff --exit-code -- dictionary-catalog.js
+          if ($LASTEXITCODE -ne 0) { throw 'Rebuilt dictionary catalog differs from the committed version.' }
           npm run build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm test
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Build both installation packages

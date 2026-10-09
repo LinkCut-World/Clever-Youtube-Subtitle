@@ -1,9 +1,16 @@
-MorphoDiTa runtime and English model
+MorphoDiTa runtime, English model, and optional offline dictionaries
 ==================================
 
 This extension combines components with different licenses. The project's MIT
 license covers its own wrapper, UI, and integration code. It does not relicense
-the MorphoDiTa library or the English model.
+the MorphoDiTa library, the English model, or the dictionary data.
+
+Optional offline dictionaries: adapted WikDict / Wiktionary data, CC BY-SA 4.0.
+No word dictionary data is bundled in an installation ZIP.
+Attribution, source URLs, and changes: third-party/WikDict-NOTICE.txt.
+Pinned source hashes: dictionary-sources.json in the source repository.
+Download pack hashes and source URLs: dictionary-catalog.js.
+License text: third-party/Dictionary-CC-BY-SA-4.0.txt.
 
 1. MorphoDiTa library: MPL 2.0
 ----------------------------
@@ -53,3 +60,11 @@ third-party/Emscripten-LICENSE.txt and
 https://github.com/emscripten-core/emscripten/tree/3.1.73
 
 Git client and filesystem dependency notices are in GIT_THIRD_PARTY_LICENSES.txt.
+
+4. SQLite dictionary reader
+---------------------------
+sql.js 1.14.2: MIT, by sql.js contributors. License: third-party/SQL-js-MIT.txt.
+Source: https://github.com/sql-js/sql.js/tree/v1.14.2
+SQLite itself is public domain: https://sqlite.org/copyright.html
+The unchanged bundled reader assets and hashes are in sqlite/provenance.json.
+It runs only while importing an official WikDict SQLite file.

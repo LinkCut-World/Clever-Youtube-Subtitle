@@ -1,0 +1,1343 @@
+{
+  "zh": {
+    "perilous": [
+      {
+        "pos": "adjective",
+        "translations": [
+          "危险"
+        ]
+      }
+    ],
+    "give": [
+      {
+        "pos": "verb",
+        "translations": [
+          "给",
+          "給"
+        ]
+      }
+    ],
+    "understand": [
+      {
+        "pos": "verb",
+        "translations": [
+          "明白"
+        ]
+      }
+    ],
+    "like": [
+      {
+        "pos": "verb",
+        "translations": [
+          "喜欢"
+        ]
+      },
+      {
+        "pos": "suffix",
+        "translations": [
+          "好像"
+        ]
+      }
+    ],
+    "condition": [
+      {
+        "pos": "noun",
+        "translations": [
+          "状态"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "条件"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "問題"
+        ]
+      }
+    ],
+    "happen": [
+      {
+        "pos": "verb",
+        "translations": [
+          "发生"
+        ]
+      }
+    ],
+    "work": [
+      {
+        "pos": "noun",
+        "translations": [
+          "工作"
+        ]
+      }
+    ],
+    "fly": [
+      {
+        "pos": "noun",
+        "translations": [
+          "苍蝇",
+          "蝇"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "飞"
+        ]
+      }
+    ],
+    "test": [
+      {
+        "pos": "noun",
+        "translations": [
+          "考试"
+        ]
+      }
+    ]
+  },
+  "es": {
+    "perilous": [
+      {
+        "pos": "adjective",
+        "translations": [
+          "peligroso"
+        ]
+      }
+    ],
+    "give": [
+      {
+        "pos": "verb",
+        "translations": [
+          "dar",
+          "donar",
+          "entregar",
+          "diñar"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "ceder",
+          "dar de sí",
+          "hundirse"
+        ]
+      }
+    ],
+    "understand": [
+      {
+        "pos": "verb",
+        "translations": [
+          "comprender",
+          "entender",
+          "coger",
+          "dar en ello",
+          "diquelar",
+          "entrevar"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "comprender"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "entender",
+          "comprender"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "sobreentenderse",
+          "subentenderse"
+        ]
+      }
+    ],
+    "like": [
+      {
+        "pos": "verb",
+        "translations": [
+          "gustar",
+          "encantar",
+          "atraer",
+          "caer",
+          "caer bien",
+          "cuajar"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "gustar",
+          "amar",
+          "disfrutar",
+          "fruir",
+          "gozar"
+        ]
+      },
+      {
+        "pos": "preposition",
+        "translations": [
+          "como"
+        ]
+      },
+      {
+        "pos": "preposition",
+        "translations": [
+          "como",
+          "a lo",
+          "cual",
+          "mismo"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "likear",
+          "dar like",
+          "dar me gusta",
+          "marcar like",
+          "marcar me gusta",
+          "poner like"
+        ]
+      },
+      {
+        "pos": "adjective",
+        "translations": [
+          "semejante",
+          "parecido",
+          "similar"
+        ]
+      },
+      {
+        "pos": "suffix",
+        "translations": [
+          "algo",
+          "cuasi-",
+          "propio de"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "filias",
+          "gustos",
+          "predilecciones",
+          "preferencias"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "me gusta"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "igual",
+          "similar"
+        ]
+      }
+    ],
+    "condition": [
+      {
+        "pos": "noun",
+        "translations": [
+          "condición"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "condición",
+          "situación"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "acondicionar"
+        ]
+      }
+    ],
+    "happen": [
+      {
+        "pos": "verb",
+        "translations": [
+          "suceder",
+          "acontecer",
+          "acaecer"
+        ]
+      }
+    ],
+    "work": [
+      {
+        "pos": "noun",
+        "translations": [
+          "trabajar",
+          "chambear",
+          "bretear",
+          "chejear",
+          "currelar",
+          "laburar"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "trabajo",
+          "chamba",
+          "curro",
+          "laburo",
+          "cheje",
+          "trabajal"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "obra",
+          "opus"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "trabajo"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "trabajo",
+          "obra"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "trabajo",
+          "laburo",
+          "tajo"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "obra",
+          "trabajo"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "trabajar",
+          "labrar",
+          "laborear",
+          "obrar",
+          "tallar"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "obrar",
+          "carburar",
+          "hacer funcionar",
+          "rular",
+          "ser eficaz",
+          "torcerse"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "bordar"
+        ]
+      }
+    ],
+    "fly": [
+      {
+        "pos": "verb",
+        "translations": [
+          "volar",
+          "circunvolar"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "mosca"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "mosca",
+          "mosco"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "bragueta",
+          "jareta"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "volar",
+          "hacer volar"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "huir"
+        ]
+      },
+      {
+        "pos": "adjective",
+        "translations": [
+          "astuto",
+          "listo",
+          "pillo",
+          "vivo"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "calesa"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "vuelo"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "colar",
+          "ser aceptado"
+        ]
+      }
+    ],
+    "test": [
+      {
+        "pos": "noun",
+        "translations": [
+          "prueba",
+          "test"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "test",
+          "prueba",
+          "probatura"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "probar",
+          "dar",
+          "diñar",
+          "revisar",
+          "testear"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "prueba",
+          "probatura"
+        ]
+      }
+    ]
+  },
+  "fr": {
+    "perilous": [
+      {
+        "pos": "adjective",
+        "translations": [
+          "périlleux"
+        ]
+      }
+    ],
+    "give": [
+      {
+        "pos": "verb",
+        "translations": [
+          "donner",
+          "bailler"
+        ]
+      }
+    ],
+    "understand": [
+      {
+        "pos": "verb",
+        "translations": [
+          "comprendre"
+        ]
+      }
+    ],
+    "like": [
+      {
+        "pos": "verb",
+        "translations": [
+          "aimer",
+          "plaire",
+          "bien aimer"
+        ]
+      },
+      {
+        "pos": "preposition",
+        "translations": [
+          "comme"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "aimer",
+          "liker",
+          "plussoyer"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "plaire",
+          "aimer"
+        ]
+      },
+      {
+        "pos": "particle",
+        "translations": [
+          "comme",
+          "genre"
+        ]
+      },
+      {
+        "pos": "adjective",
+        "translations": [
+          "pareil"
+        ]
+      },
+      {
+        "pos": "suffix",
+        "translations": [
+          "-in",
+          "-ine"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "j'aime",
+          "mention « j'aime »"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "préférence"
+        ]
+      }
+    ],
+    "condition": [
+      {
+        "pos": "noun",
+        "translations": [
+          "condition"
+        ]
+      }
+    ],
+    "happen": [
+      {
+        "pos": "verb",
+        "translations": [
+          "arriver",
+          "se passer",
+          "se produire",
+          "advenir"
+        ]
+      }
+    ],
+    "work": [
+      {
+        "pos": "noun",
+        "translations": [
+          "travail",
+          "œuvre",
+          "création"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "travailler",
+          "bosser"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "travail"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "œuvre",
+          "travail"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "travail",
+          "œuvre"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "marcher",
+          "fonctionner",
+          "travail",
+          "actionner",
+          "faire"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "broder"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "opérer",
+          "travailler"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "se travailler"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "travailler"
+        ]
+      }
+    ],
+    "fly": [
+      {
+        "pos": "noun",
+        "translations": [
+          "mouche"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "voler"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "braguette"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "piloter",
+          "faire voler"
+        ]
+      },
+      {
+        "pos": "adjective",
+        "translations": [
+          "bien habillé",
+          "cool"
+        ]
+      }
+    ],
+    "test": [
+      {
+        "pos": "noun",
+        "translations": [
+          "test",
+          "examen"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "épreuve",
+          "test"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "tester",
+          "mettre à l'épreuve"
+        ]
+      }
+    ]
+  },
+  "de": {
+    "perilous": [
+      {
+        "pos": "adjective",
+        "translations": [
+          "gefährlich",
+          "gefahrvoll",
+          "voller  Gefahren"
+        ]
+      }
+    ],
+    "give": [
+      {
+        "pos": "verb",
+        "translations": [
+          "geben",
+          "abgeben"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "nachgeben"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "Dehnbarkeit"
+        ]
+      }
+    ],
+    "understand": [
+      {
+        "pos": "verb",
+        "translations": [
+          "verstehen",
+          "begreifen"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "verstehen"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "den Eindruck haben",
+          "glauben"
+        ]
+      }
+    ],
+    "like": [
+      {
+        "pos": "verb",
+        "translations": [
+          "mögen",
+          "gefallen",
+          "gern haben",
+          "gern"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "mögen",
+          "gefallen",
+          "gern haben"
+        ]
+      },
+      {
+        "pos": "preposition",
+        "translations": [
+          "wie",
+          "nach"
+        ]
+      },
+      {
+        "pos": "preposition",
+        "translations": [
+          "wie"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "liken",
+          "mögen"
+        ]
+      },
+      {
+        "pos": "adjective",
+        "translations": [
+          "ähnlich"
+        ]
+      },
+      {
+        "pos": "suffix",
+        "translations": [
+          "-artig",
+          "-haft",
+          "-ähnlich"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "Like"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "Vorliebe"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "deinesgleichen",
+          "euresgleichen",
+          "ihresgleichen",
+          "meinesgleichen",
+          "seinesgleichen",
+          "unseresgleichen"
+        ]
+      }
+    ],
+    "condition": [
+      {
+        "pos": "noun",
+        "translations": [
+          "Bedingung",
+          "Kondition"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "Bedingung",
+          "Voraussetzung"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "Verfassung",
+          "Kondition",
+          "Zustand",
+          "Befinden"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "Zustand",
+          "Beschaffenheit"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "konditionieren"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "Zustand"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "schlechter Zustand"
+        ]
+      }
+    ],
+    "happen": [
+      {
+        "pos": "verb",
+        "translations": [
+          "geschehen",
+          "passieren",
+          "stattfinden",
+          "sich ereignen",
+          "vorfallen"
+        ]
+      }
+    ],
+    "work": [
+      {
+        "pos": "noun",
+        "translations": [
+          "arbeiten"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "Arbeit",
+          "Werk"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "Werk",
+          "Arbeit"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "Arbeit"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "funktionieren",
+          "wirken",
+          "Arbeit",
+          "Werk"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "Werk"
+        ]
+      }
+    ],
+    "fly": [
+      {
+        "pos": "noun",
+        "translations": [
+          "Fliege"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "fliegen"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "Hosenschlitz"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "fliegen",
+          "fahren",
+          "fliegen lassen"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "fliehen",
+          "flüchten"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "Kunstköder",
+          "Blinker"
+        ]
+      },
+      {
+        "pos": "adjective",
+        "translations": [
+          "clever",
+          "smart"
+        ]
+      },
+      {
+        "pos": "adjective",
+        "translations": [
+          "smart"
+        ]
+      }
+    ],
+    "test": [
+      {
+        "pos": "noun",
+        "translations": [
+          "Test",
+          "Prüfung",
+          "Erprobung"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "Prüfung",
+          "Examen",
+          "Test"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "Test",
+          "Versuch"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "prüfen",
+          "abverlangen",
+          "aufzeigen",
+          "erproben",
+          "erweisen",
+          "fordern"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "Gehäuse"
+        ]
+      }
+    ]
+  },
+  "ja": {
+    "perilous": [
+      {
+        "pos": "adjective",
+        "translations": [
+          "危ない"
+        ]
+      }
+    ],
+    "give": [
+      {
+        "pos": "verb",
+        "translations": [
+          "あげる",
+          "差し上げる",
+          "与える",
+          "下さる",
+          "くれる"
+        ]
+      }
+    ],
+    "understand": [
+      {
+        "pos": "verb",
+        "translations": [
+          "分かる",
+          "理解"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "信じる"
+        ]
+      }
+    ],
+    "like": [
+      {
+        "pos": "verb",
+        "translations": [
+          "好む",
+          "好き"
+        ]
+      },
+      {
+        "pos": "suffix",
+        "translations": [
+          "っぽい",
+          "の様に",
+          "みたい",
+          "様"
+        ]
+      },
+      {
+        "pos": "adjective",
+        "translations": [
+          "みたい",
+          "よう",
+          "形容詞"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "いいね!",
+          "イイネ!"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "好み"
+        ]
+      },
+      {
+        "pos": "particle",
+        "translations": [
+          "あのう",
+          "ええと"
+        ]
+      },
+      {
+        "pos": "particle",
+        "translations": [
+          "って言うか"
+        ]
+      },
+      {
+        "pos": "preposition",
+        "translations": [
+          "のように"
+        ]
+      },
+      {
+        "pos": "preposition",
+        "translations": [
+          "よう"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "いいね"
+        ]
+      }
+    ],
+    "condition": [
+      {
+        "pos": "noun",
+        "translations": [
+          "条件"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "状態",
+          "コンディション"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "状態"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "調整する"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "適応する",
+          "順応する"
+        ]
+      }
+    ],
+    "happen": [
+      {
+        "pos": "verb",
+        "translations": [
+          "起こる",
+          "起る"
+        ]
+      }
+    ],
+    "work": [
+      {
+        "pos": "noun",
+        "translations": [
+          "働く",
+          "勤める"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "仕事",
+          "職業",
+          "労働",
+          "ワーク"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "仕事"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "労力",
+          "労働",
+          "作業"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "作品",
+          "著作"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "仕事場",
+          "仕事"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "働かせる"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "働かせる",
+          "働く",
+          "起こす"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "働きかける"
+        ]
+      }
+    ],
+    "fly": [
+      {
+        "pos": "verb",
+        "translations": [
+          "飛ぶ",
+          "とぶ"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "蝿",
+          "ハエ",
+          "蠅"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "ハエ目",
+          "双翅目",
+          "蝿"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "ルアー",
+          "蝿"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "ファスナー隠し",
+          "フライ",
+          "ボタン隠し",
+          "社会の窓"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "飛ばす",
+          "飛ぶ"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "打ち上げる"
+        ]
+      }
+    ],
+    "test": [
+      {
+        "pos": "noun",
+        "translations": [
+          "試験",
+          "テスト"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "テスト",
+          "検査"
+        ]
+      },
+      {
+        "pos": "noun",
+        "translations": [
+          "実験",
+          "試練"
+        ]
+      },
+      {
+        "pos": "verb",
+        "translations": [
+          "試す"
+        ]
+      }
+    ]
+  }
+}

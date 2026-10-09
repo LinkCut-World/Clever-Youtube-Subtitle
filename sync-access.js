@@ -2,7 +2,7 @@
   "use strict";
 
   async function ensureServerAccess(permissions, origin) {
-    const access = { origins: [origin] };
+    const access = { origins: Array.isArray(origin) ? origin : [origin] };
     // Kiwi cannot display the optional-permission dialog. Its package grants
     // server access at installation, so do not invoke that dialog again.
     if (await permissions.contains(access)) return true;

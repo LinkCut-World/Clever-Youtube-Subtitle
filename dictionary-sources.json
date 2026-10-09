@@ -1,0 +1,259 @@
+{
+  "source": "WikDict by Karl Bartel; Wiktionary contributors via DBnary",
+  "sourceVersion": "2_2026-06",
+  "license": "CC-BY-SA-4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+  "changes": "Downloaded directly from WikDict official SQLite exports. On-device conversion normalizes headwords, removes multiword entries, prefers entry-linked translations with reverse candidates as fallback, retains POS, deduplicates and limits to ten entries, and stores 128 shards per language.",
+  "packs": [
+    {
+      "language": "bg",
+      "name": "Български",
+      "englishName": "Bulgarian",
+      "sourceUrl": "https://download.wikdict.com/dictionaries/sqlite/2_2026-06/en-bg.sqlite3",
+      "sourceSha256": "dc9a5d7a0a6d1696fb8ea90f708be84119e0e48688770beace0f6b2b87933927",
+      "bytes": 11239424,
+      "words": 35938,
+      "dataBytes": 3967254
+    },
+    {
+      "language": "ca",
+      "name": "Català",
+      "englishName": "Catalan",
+      "sourceUrl": "https://download.wikdict.com/dictionaries/sqlite/2_2026-06/en-ca.sqlite3",
+      "sourceSha256": "44991b6772ad00ea0a7f5ca4e7a2bb2f449ec29cbc6f93db5707dec5decfc2d0",
+      "bytes": 9711616,
+      "words": 41534,
+      "dataBytes": 2954162
+    },
+    {
+      "language": "zh",
+      "name": "中文",
+      "englishName": "Chinese",
+      "sourceUrl": "https://download.wikdict.com/dictionaries/sqlite/2_2026-06/en-zh.sqlite3",
+      "sourceSha256": "16cf69dc8037a8d4dc6bde260142bf0181f9ff0a008d457f26452f1d80ca5ecd",
+      "bytes": 5169152,
+      "words": 23064,
+      "dataBytes": 1559234
+    },
+    {
+      "language": "cs",
+      "name": "Čeština",
+      "englishName": "Czech",
+      "sourceUrl": "https://download.wikdict.com/dictionaries/sqlite/2_2026-06/en-cs.sqlite3",
+      "sourceSha256": "0a93ffa23276074b547b9d222db88b56e4a287dce5267db9014ad9e8af3b6e92",
+      "bytes": 9740288,
+      "words": 40651,
+      "dataBytes": 3106636
+    },
+    {
+      "language": "da",
+      "name": "Dansk",
+      "englishName": "Danish",
+      "sourceUrl": "https://download.wikdict.com/dictionaries/sqlite/2_2026-06/en-da.sqlite3",
+      "sourceSha256": "2dc842eaeff45357b12d9cc5f92a57b727c29c8106b1ec412071ed4eb8492a42",
+      "bytes": 7995392,
+      "words": 31414,
+      "dataBytes": 2341102
+    },
+    {
+      "language": "nl",
+      "name": "Nederlands",
+      "englishName": "Dutch",
+      "sourceUrl": "https://download.wikdict.com/dictionaries/sqlite/2_2026-06/en-nl.sqlite3",
+      "sourceSha256": "35a0f9725926fa9d78610e07805dcfc79944c0f7b59a8e16b780074569007ff6",
+      "bytes": 12623872,
+      "words": 46459,
+      "dataBytes": 3664065
+    },
+    {
+      "language": "fi",
+      "name": "Suomi",
+      "englishName": "Finnish",
+      "sourceUrl": "https://download.wikdict.com/dictionaries/sqlite/2_2026-06/en-fi.sqlite3",
+      "sourceSha256": "0a7313157cf92b423c8e59984054069fcfd5cdf28c4d2c85c80a6ec7d1ff9d49",
+      "bytes": 19202048,
+      "words": 53840,
+      "dataBytes": 5304043
+    },
+    {
+      "language": "fr",
+      "name": "Français",
+      "englishName": "French",
+      "sourceUrl": "https://download.wikdict.com/dictionaries/sqlite/2_2026-06/en-fr.sqlite3",
+      "sourceSha256": "3908275d1c0fea866e681d5e065c25e4fd2c39a6d3d3dd23b48f351eb0e286a2",
+      "bytes": 24039424,
+      "words": 105281,
+      "dataBytes": 7271233
+    },
+    {
+      "language": "de",
+      "name": "Deutsch",
+      "englishName": "German",
+      "sourceUrl": "https://download.wikdict.com/dictionaries/sqlite/2_2026-06/en-de.sqlite3",
+      "sourceSha256": "f2154e82c4a34851922e0c0d275decea7b34ad0ec8fd087090c592b59112d0c2",
+      "bytes": 20873216,
+      "words": 68681,
+      "dataBytes": 5852022
+    },
+    {
+      "language": "el",
+      "name": "Ελληνικά",
+      "englishName": "Greek",
+      "sourceUrl": "https://download.wikdict.com/dictionaries/sqlite/2_2026-06/en-el.sqlite3",
+      "sourceSha256": "79369bc48b1b6679b521043b7d75a7f40fbe82734598d17cd4bfc4547b74dbd9",
+      "bytes": 12025856,
+      "words": 51460,
+      "dataBytes": 4258547
+    },
+    {
+      "language": "id",
+      "name": "Bahasa Indonesia",
+      "englishName": "Indonesian",
+      "sourceUrl": "https://download.wikdict.com/dictionaries/sqlite/2_2026-06/en-id.sqlite3",
+      "sourceSha256": "3a0c2459e020965d1eedf9f944f8e93962d90a76a5206e639983a3a4a7de0771",
+      "bytes": 4550656,
+      "words": 19965,
+      "dataBytes": 1407970
+    },
+    {
+      "language": "ga",
+      "name": "Gaeilge",
+      "englishName": "Irish",
+      "sourceUrl": "https://download.wikdict.com/dictionaries/sqlite/2_2026-06/en-ga.sqlite3",
+      "sourceSha256": "a1e88743de5e7f6e540395867975884442c81c0bbc0e1520a4cd4a02b709b3d8",
+      "bytes": 4751360,
+      "words": 20715,
+      "dataBytes": 1552096
+    },
+    {
+      "language": "it",
+      "name": "Italiano",
+      "englishName": "Italian",
+      "sourceUrl": "https://download.wikdict.com/dictionaries/sqlite/2_2026-06/en-it.sqlite3",
+      "sourceSha256": "f30c52bd8e7d5d310610715bf6fda482ef510d45ff9478ee5b430a6d301794f1",
+      "bytes": 14819328,
+      "words": 60726,
+      "dataBytes": 4663742
+    },
+    {
+      "language": "ja",
+      "name": "日本語",
+      "englishName": "Japanese",
+      "sourceUrl": "https://download.wikdict.com/dictionaries/sqlite/2_2026-06/en-ja.sqlite3",
+      "sourceSha256": "fb0148ba9f3f4c03497bc5ae41b55157918ee2d185df10d53a5409ed38c4e91f",
+      "bytes": 9441280,
+      "words": 36168,
+      "dataBytes": 2905697
+    },
+    {
+      "language": "ku",
+      "name": "Kurdî",
+      "englishName": "Kurdish",
+      "sourceUrl": "https://download.wikdict.com/dictionaries/sqlite/2_2026-06/en-ku.sqlite3",
+      "sourceSha256": "b41faae8d9e87f047e2c2aea313f806ff03dd9234bfd9a69b0aba26271dd8de9",
+      "bytes": 4681728,
+      "words": 37304,
+      "dataBytes": 2114157
+    },
+    {
+      "language": "la",
+      "name": "Latine",
+      "englishName": "Latin",
+      "sourceUrl": "https://download.wikdict.com/dictionaries/sqlite/2_2026-06/en-la.sqlite3",
+      "sourceSha256": "10e483a51c0f7b11fae9e0e9c59c3890bc437b6df1d5603022eff629fdf05193",
+      "bytes": 6021120,
+      "words": 28412,
+      "dataBytes": 2085443
+    },
+    {
+      "language": "lt",
+      "name": "Lietuvių",
+      "englishName": "Lithuanian",
+      "sourceUrl": "https://download.wikdict.com/dictionaries/sqlite/2_2026-06/en-lt.sqlite3",
+      "sourceSha256": "9bad703b4ea2abc1271afdaf409d86c98b689a72dbfc151c0298e05b47065259",
+      "bytes": 4243456,
+      "words": 19817,
+      "dataBytes": 1350650
+    },
+    {
+      "language": "mg",
+      "name": "Malagasy",
+      "englishName": "Malagasy",
+      "sourceUrl": "https://download.wikdict.com/dictionaries/sqlite/2_2026-06/en-mg.sqlite3",
+      "sourceSha256": "40dd1dab647b3b37e7c722034e4dd5319a6bbaa19e1a45526496caca4ada73fd",
+      "bytes": 761856,
+      "words": 4031,
+      "dataBytes": 270556
+    },
+    {
+      "language": "no",
+      "name": "Norsk",
+      "englishName": "Norwegian",
+      "sourceUrl": "https://download.wikdict.com/dictionaries/sqlite/2_2026-06/en-no.sqlite3",
+      "sourceSha256": "25560cc0374b05eaebeefc8ebdce6ab0c9e7acd84aa99ca0bb00f953506a9fee",
+      "bytes": 5525504,
+      "words": 24002,
+      "dataBytes": 1658166
+    },
+    {
+      "language": "pl",
+      "name": "Polski",
+      "englishName": "Polish",
+      "sourceUrl": "https://download.wikdict.com/dictionaries/sqlite/2_2026-06/en-pl.sqlite3",
+      "sourceSha256": "44f7248a70e6f5ece779eaf89f4f31ff458bf2548b144fd6f859d2bb5c833944",
+      "bytes": 16003072,
+      "words": 61283,
+      "dataBytes": 4767763
+    },
+    {
+      "language": "pt",
+      "name": "Português",
+      "englishName": "Portuguese",
+      "sourceUrl": "https://download.wikdict.com/dictionaries/sqlite/2_2026-06/en-pt.sqlite3",
+      "sourceSha256": "c37ed57201284cf187e17516fe9c6b4b6c1b9c166909a76e9c81cbdc19b961fd",
+      "bytes": 12853248,
+      "words": 50389,
+      "dataBytes": 3961682
+    },
+    {
+      "language": "ru",
+      "name": "Русский",
+      "englishName": "Russian",
+      "sourceUrl": "https://download.wikdict.com/dictionaries/sqlite/2_2026-06/en-ru.sqlite3",
+      "sourceSha256": "3f65395883b996131c9b7a7b7b7c14c1b4458c892fae0050decd71dc0a3b4b0a",
+      "bytes": 20938752,
+      "words": 67077,
+      "dataBytes": 7179126
+    },
+    {
+      "language": "es",
+      "name": "Español",
+      "englishName": "Spanish",
+      "sourceUrl": "https://download.wikdict.com/dictionaries/sqlite/2_2026-06/en-es.sqlite3",
+      "sourceSha256": "d66fd6f8b7f3872f5fa17391846468ac18cda11a63b64961ebd36c7ba1069a79",
+      "bytes": 16146432,
+      "words": 58190,
+      "dataBytes": 4890394
+    },
+    {
+      "language": "sv",
+      "name": "Svenska",
+      "englishName": "Swedish",
+      "sourceUrl": "https://download.wikdict.com/dictionaries/sqlite/2_2026-06/en-sv.sqlite3",
+      "sourceSha256": "bf006ef7891fe62233c4fa54410c1f87ad19e01f5efcb0406a47c9985c40c5a7",
+      "bytes": 12492800,
+      "words": 46013,
+      "dataBytes": 3548682
+    },
+    {
+      "language": "tr",
+      "name": "Türkçe",
+      "englishName": "Turkish",
+      "sourceUrl": "https://download.wikdict.com/dictionaries/sqlite/2_2026-06/en-tr.sqlite3",
+      "sourceSha256": "76fd98a73fdc02bcca81ee338441187cb93b77bfc11a70ae2708eebace3e53c0",
+      "bytes": 8417280,
+      "words": 33605,
+      "dataBytes": 2560579
+    }
+  ]
+}

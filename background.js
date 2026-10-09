@@ -1,7 +1,7 @@
 "use strict";
 
 importScripts("word-utils.js", "sync-model.js", "sync-codec.js", "git-bundle.js", "sync-git.js",
-  "morphodita/morphodita.js", "morphodita/engine.js", "nlp-service.js");
+  "morphodita/morphodita.js", "morphodita/engine.js", "nlp-service.js", "dictionary-catalog.js", "dictionary.js", "dictionary-store.js", "microsoft-dictionary.js", "dictionary-service.js");
 
 const model = globalThis.CleverSubtitleSyncModel;
 const remote = globalThis.CleverSubtitleGitSync;
@@ -87,7 +87,7 @@ async function performSync() {
   try {
     const origin = remote.parseRepositoryAddress(data.syncConfig.url).origin;
     if (!await chrome.permissions.contains({ origins: [origin] })) {
-      throw new Error("Open My Vocabulary and save the sync settings to allow this Git server.");
+      throw new Error("Open Settings → My Vocabulary → Sync between devices and save the settings to allow this Git server.");
     }
     const remoteState = await remote.syncWithGit(fetchWithTimeout, data.syncConfig, data.syncState);
     return await serial(async () => {
@@ -174,8 +174,19 @@ async function status() {
   };
 }
 
-chrome.runtime.onMessage.addListener((message, _sender, respond) => {
+chrome.runtime.onMessage.addListener((message, sender, respond) => {
+  if (["dictionary:configure", "dictionary:forget-key"].includes(message?.type) &&
+      (sender?.id !== chrome.runtime.id || !["options.html", "dictionaries.html"].some((page) =>
+        sender?.url?.split(/[?#]/u)[0] === chrome.runtime.getURL(page)) ||
+        (message.type === "dictionary:forget-key" && sender?.url?.split(/[?#]/u)[0] !== chrome.runtime.getURL("options.html")))) {
+    respond({ ok: false, error: "Change word meaning settings in Settings → Dictionary." });
+    return false;
+  }
   const tasks = {
+    "dictionary:lookup": () => globalThis.CleverSubtitleDictionaryService.lookup(message).then((result) => ({ result })),
+    "dictionary:status": () => globalThis.CleverSubtitleDictionaryService.status(),
+    "dictionary:configure": () => globalThis.CleverSubtitleDictionaryService.configure(message),
+    "dictionary:forget-key": () => globalThis.CleverSubtitleDictionaryService.forgetKey(),
     "nlp:analyze": () => globalThis.CleverSubtitleNLPService.analyze(message.text).then((tokens) => ({ tokens })),
     "vocab:get": () => serial(() => localData().then((data) => ({ words: model.effectiveWords(data.syncState) }))),
     "vocab:mutate": () => serial(() => mutate(message.mutation)),

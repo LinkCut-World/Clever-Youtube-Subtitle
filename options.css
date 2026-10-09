@@ -7,7 +7,7 @@
 
 * { box-sizing: border-box; }
 body { margin: 0; }
-button, input, textarea { font: inherit; }
+button, input, textarea, select { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .5; }
 button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid #3152db; outline-offset: 2px; }
@@ -32,6 +32,12 @@ main { padding-block: 28px 56px; }
 .editor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
 .card { min-width: 0; padding: 24px; border: 1px solid #e2e7f1; border-radius: 16px; background: #fff; box-shadow: 0 5px 20px rgba(21, 36, 73, .035); }
 h2 { margin: 0; font-size: 18px; }
+h3 { margin: 0; font-size: 16px; }
+.settings-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+.settings-nav a { padding: 9px 14px; border: 1px solid #cbd5e5; border-radius: 9px; background: #fff; color: #2c3c5d; font-size: 13px; font-weight: 700; text-decoration: none; }
+.settings-nav a:hover { background: #eaf0ff; }
+.settings-nav a:focus-visible { outline: 2px solid #3152db; outline-offset: 2px; }
+.settings-section { scroll-margin-top: 20px; }
 .section-help { margin: 8px 0 20px; color: #6b7890; font-size: 12px; line-height: 1.6; }
 .field-label { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 700; }
 input[type="file"], input[type="search"], input[type="url"], input[type="text"], input[type="password"], textarea { width: 100%; }
@@ -63,6 +69,23 @@ button.danger:not(:disabled):hover { background: #fff4f4; }
 .word-list button { flex: 0 0 auto; padding: 4px 7px; margin-left: 8px; border: 0; border-radius: 6px; background: transparent; color: #a53842; font-size: 12px; }
 .word-list button:hover { background: #fcecee; }
 .sync-card { margin-top: 18px; }
+.dictionary-card { margin-top: 18px; }
+.dictionary-card select { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e5; border-radius: 9px; background: #fff; color: #1a2540; font-size: 13px; }
+.dictionary-card .field-label:not(:first-of-type), #dictionary-microsoft .field-label { margin-top: 16px; }
+.dictionary-result { margin-top: 14px; padding: 14px 16px; border-radius: 9px; background: #f3f6fd; font-size: 14px; line-height: 1.5; }
+.dictionary-result p { margin: 8px 0 0; }
+.azure-help { margin-top: 12px; color: #526078; font-size: 12px; line-height: 1.6; }
+.azure-help summary { cursor: pointer; font-weight: 700; }
+.azure-help li + li { margin-top: 8px; }
+.back-link { margin: 0 0 18px; font-size: 13px; }
+.dictionary-pack-list { margin-top: 16px; }
+.dictionary-search-label { margin-top: 18px; }
+.dictionary-pack { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 0; border-top: 1px solid #e3e8f2; }
+.dictionary-pack h3 { margin: 0; font-size: 16px; }
+.dictionary-pack p { margin: 5px 0 0; color: #66738a; font-size: 12px; line-height: 1.5; }
+.dictionary-pack-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.dictionary-pack-actions a { font-size: 12px; }
+#packs-import { margin-top: 14px; }
 .sync-card .section-help { margin-bottom: 18px; }
 .sync-card .field-label:not(:first-of-type) { margin-top: 16px; }
 .sync-help, .sync-status { color: #66738a; font-size: 12px; line-height: 1.5; }
@@ -81,4 +104,6 @@ button.danger:not(:disabled):hover { background: #fff4f4; }
   .editor-grid, .word-list { grid-template-columns: 1fr; }
   .library-header { flex-direction: column; }
   .library-actions { justify-content: flex-start; }
+  .dictionary-pack { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .dictionary-pack-actions { justify-content: flex-start; }
 }

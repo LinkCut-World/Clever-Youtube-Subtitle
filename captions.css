@@ -127,6 +127,30 @@
   background: #3a3a3a;
 }
 
+.clever-subtitle-meaning {
+  position: fixed;
+  z-index: 2147483647;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  background: rgba(24, 24, 24, 0.98);
+  color: #fff;
+  font: 16px/1.5 Arial, sans-serif;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.clever-subtitle-meaning[hidden] { display: none !important; }
+.clever-subtitle-meaning-word { display: block; font-size: 18px; }
+.clever-subtitle-meaning-entry { margin: 8px 0 0; }
+.clever-subtitle-meaning-pos { display: inline-block; margin-right: 8px; color: #b9c4d9; font-size: 12px; }
+
 .clever-subtitle-review-toggle {
   cursor: grab;
   touch-action: none;

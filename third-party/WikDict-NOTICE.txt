@@ -1,0 +1,31 @@
+Optional WikDict dictionaries
+============================
+
+Source: WikDict by Karl Bartel, https://www.wikdict.com/
+Underlying data: Wiktionary contributors, https://www.wiktionary.org/
+Extraction: DBnary, https://kaiko.getalp.org/about-dbnary/
+Original downloads: https://www.wikdict.com/page/download
+Snapshot: SQLite export 2_2026-06
+
+The adapted dictionary data is licensed under Creative Commons
+Attribution-ShareAlike 4.0 International (CC BY-SA 4.0).
+License: https://creativecommons.org/licenses/by-sa/4.0/
+The complete legal code is included in each download pack and in
+third-party/Dictionary-CC-BY-SA-4.0.txt in the extension.
+
+On-device adaptation: normalized headwords, removed multiword entries, preferred translations
+linked to English lexical entries (using reverse candidates only when none
+exist), retained translations and available parts of speech, deduplicated entries,
+and limited each headword to ten entries. The browser stores installed entries
+in 128 shards per language.
+
+No dictionary entries are included in an installation ZIP. Users choose which
+official SQLite databases to download or import directly from download.wikdict.com.
+Pinned source hashes are in dictionary-sources.json; download hashes, counts,
+sizes, and official source URLs are in dictionary-catalog.js. wikdict-sqlite.js
+performs the adaptation on the user's device. No project-hosted data pack is needed.
+
+These are general dictionary translations, not context-specific definitions.
+Some words and meanings are missing. Chinese entries may use simplified or
+traditional characters as supplied by the source. No publisher endorses this
+extension. The extension's MIT license does not relicense dictionary data.

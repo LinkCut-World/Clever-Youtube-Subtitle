@@ -5,6 +5,11 @@
   const WORD_SELECTOR = ".ytp-caption-segment .clever-subtitle-unknown, .ytp-caption-segment .clever-subtitle-known, .clever-subtitle-review-caption .clever-subtitle-unknown, .clever-subtitle-review-caption .clever-subtitle-known";
   const { normalizeWord, captionPartsForSegments } = globalThis.CleverSubtitleWords;
   const nlp = globalThis.CleverSubtitleNLP;
+  const interaction = globalThis.CleverSubtitleInteraction.createInteraction();
+  const dictionary = globalThis.CleverSubtitleDictionary;
+  const meanings = globalThis.CleverSubtitleMeaning?.createCard(
+    (message) => chrome.runtime.sendMessage(message), document, window
+  );
   const pendingAnalysis = new Set();
   const originals = new WeakMap();
   const stream = globalThis.CleverSubtitleStream.createStream(nlp, globalThis.CleverSubtitleWords, () => {
@@ -20,13 +25,9 @@
   let hideTimer;
   let saving = false;
   let touchSelection = false;
-  let selectionPinned = false;
-  let revealKnownHeld = false;
   let suppressMouseHoverUntil = 0;
   let blockedTouch = null;
   let wordButtonArmed = false;
-  let activeCaptionText = null;
-  let activeRect = null;
   let activeInReview = false;
   let currentCaption = null;
   let previousCaption = null;
@@ -45,33 +46,45 @@
   let staleCaptionKey = null;
 
   function updateKnownVisibility() {
-    const reveal = revealKnownHeld || Boolean(activeElement &&
-      !selectionPinned && !touchSelection && activeElement.classList.contains("clever-subtitle-known"));
-    document.documentElement.classList[reveal ? "add" : "remove"]("clever-subtitle-reveal-known");
+    document.documentElement.classList[interaction.revealKnown ? "add" : "remove"]("clever-subtitle-reveal-known");
   }
 
   function hideWordButton() {
     clearTimeout(hideTimer);
     hideTimer = null;
-    activeElement?.classList.remove("clever-subtitle-active");
-    activeElement = null;
-    touchSelection = false;
-    selectionPinned = false;
+    interaction.reset();
     wordButtonArmed = false;
-    activeCaptionText = null;
-    activeRect = null;
-    activeInReview = false;
-    if (wordButton) wordButton.hidden = true;
-    updateKnownVisibility();
+    renderInteraction();
+  }
+
+  function leaveHoveredWord() {
+    clearTimeout(hideTimer);
+    hideTimer = null;
+    interaction.leave();
+    renderInteraction();
+  }
+
+  function wordState(element, input) {
+    const inReview = Boolean(reviewedCaption && reviewCaption.contains(element));
+    return {
+      element, input, review: inReview,
+      captionText: inReview ? reviewedCaption.key : captionText([...document.querySelectorAll(".ytp-caption-segment")]
+        .map((segment) => segment.textContent || "")),
+      text: element.textContent, id: element.dataset.cleverId,
+      rect: element.getBoundingClientRect(),
+      // Store the gesture's intent; saving vocabulary does not create a new click.
+      reveal: element.classList.contains("clever-subtitle-known")
+    };
   }
 
   function closeReview(resume = true) {
-    if (activeInReview) hideWordButton();
+    interaction.clearReview();
     reviewedCaption = null;
     if (reviewPanel) {
       reviewPanel.hidden = true;
       reviewToggle.setAttribute("aria-expanded", "false");
     }
+    renderInteraction();
     const video = resumeVideo;
     resumeVideo = null;
     if (resume && video && video === trackedVideo && video.isConnected && video.paused && !video.ended && !video.seeking) {
@@ -86,8 +99,6 @@
       .map((segment) => segment.textContent || "")) : null;
     closeReview(false);
     hideWordButton();
-    revealKnownHeld = false;
-    updateKnownVisibility();
     currentCaption = null;
     previousCaption = null;
     stream.reset();
@@ -97,9 +108,7 @@
 
   function onVideoPlay() {
     // If the user resumes through YouTube, dismiss the frozen caption too.
-    if (selectionPinned || touchSelection || revealKnownHeld) hideWordButton();
-    revealKnownHeld = false;
-    updateKnownVisibility();
+    hideWordButton();
     closeReview(false);
   }
 
@@ -124,7 +133,7 @@
 
   function openReview() {
     if (!previousCaption || !trackedVideo) return;
-    hideWordButton();
+    leaveHoveredWord();
     reviewedCaption = previousCaption;
     reviewRevision = -1;
     reviewCaption.textContent = reviewedCaption.text;
@@ -317,11 +326,12 @@
     if (activeInReview) {
       const visible = reviewCaption.getBoundingClientRect();
       if (rect.bottom <= visible.top || rect.top >= visible.bottom || rect.right <= visible.left || rect.left >= visible.right) {
-        hideWordButton();
+        interaction.drop(activeElement);
+        renderInteraction();
         return;
       }
     }
-    if (rect.width > 0 && rect.height > 0) activeRect = rect;
+    if (rect.width > 0 && rect.height > 0) interaction.button.rect = rect;
     const width = wordButton.offsetWidth;
     const height = wordButton.offsetHeight;
     const above = rect.top - height;
@@ -330,6 +340,7 @@
       Math.max(8, window.innerWidth - width - 8)
     )}px`;
     wordButton.style.top = `${above >= 0 ? above : rect.bottom}px`;
+    meanings?.position();
   }
 
   function captionText(texts) {
@@ -346,7 +357,7 @@
     const word = activeElement.dataset.cleverWord;
     const removing = activeElement.classList.contains("clever-subtitle-known");
     if (!word) return;
-    const keepSelection = selectionPinned && !touchSelection;
+    const actionElement = activeElement;
     let saved = false;
     saving = true;
     wordButton.disabled = true;
@@ -361,11 +372,10 @@
       if (!response?.ok) throw new Error(response?.error || "Could not save.");
       knownWords = new Set(response.words);
       wordsRevision += 1;
-      if (!keepSelection) hideWordButton();
       saved = true;
     } catch (error) {
       console.warn("Clever Youtube Subtitle: unable to update My Vocabulary", error);
-      if (activeElement) {
+      if (activeElement === actionElement) {
         wordButton.textContent = "!";
         wordButton.title = "Could not save. Tap to try again.";
         wordButton.setAttribute("aria-label", wordButton.title);
@@ -377,10 +387,32 @@
     }
   }
 
-  function showWordButton(element, fromTouch = false, pinned = false) {
-    if (!vocabularyReady || element.dataset.cleverPending === "true") return;
-    clearTimeout(hideTimer);
-    hideTimer = null;
+  function renderInteraction() {
+    // Closing or scrolling a review word out of view must not discard a
+    // selection in the current captions, or the other way round.
+    for (const state of [interaction.hovered, interaction.selected]) {
+      if (!state?.review) continue;
+      const rect = state.element.getBoundingClientRect();
+      const visible = reviewCaption.getBoundingClientRect();
+      if (!reviewedCaption || rect.bottom <= visible.top || rect.top >= visible.bottom ||
+          rect.right <= visible.left || rect.left >= visible.right) interaction.drop(state.element);
+    }
+    const target = interaction.button;
+    const element = target?.element;
+    if (activeElement !== element) {
+      activeElement?.classList.remove("clever-subtitle-active");
+      wordButtonArmed = false;
+    }
+    activeElement = element || null;
+    activeInReview = Boolean(target?.review);
+    touchSelection = target?.input === "touch";
+    updateKnownVisibility();
+    if (interaction.selected) meanings?.select(interaction.selected.element);
+    else meanings?.clear();
+    if (!element || !vocabularyReady || element.dataset.cleverPending === "true") {
+      if (wordButton) wordButton.hidden = true;
+      return;
+    }
     if (!wordButton) {
       wordButton = document.createElement("button");
       wordButton.type = "button";
@@ -405,16 +437,6 @@
     }
     const host = document.fullscreenElement || document.body;
     if (wordButton.parentElement !== host) host.appendChild(wordButton);
-    if (activeElement !== element) {
-      activeElement?.classList.remove("clever-subtitle-active");
-      selectionPinned = pinned;
-    }
-    touchSelection = fromTouch;
-    if (pinned) selectionPinned = true;
-    activeElement = element;
-    activeInReview = Boolean(reviewedCaption && reviewCaption.contains(element));
-    activeCaptionText = activeInReview ? reviewedCaption.key : captionText([...document.querySelectorAll(".ytp-caption-segment")]
-      .map((segment) => segment.textContent || ""));
     activeElement.classList.add("clever-subtitle-active");
     const word = element.dataset.cleverWord;
     const removing = element.classList.contains("clever-subtitle-known");
@@ -426,6 +448,16 @@
     wordButton.hidden = false;
     updateKnownVisibility();
     positionWordButton();
+  }
+
+  function showWordButton(element, fromTouch = false, pinned = false) {
+    if (!vocabularyReady || element.dataset.cleverPending === "true") return;
+    clearTimeout(hideTimer);
+    hideTimer = null;
+    const state = wordState(element, fromTouch ? "touch" : "mouse");
+    if (pinned) interaction.select(state);
+    else interaction.hover(state);
+    renderInteraction();
   }
 
   function updateSegment(segment, parts, streaming = false) {
@@ -455,6 +487,8 @@
         if (part.pending) span.classList.add("clever-subtitle-pending");
         span.dataset.cleverWord = part.hidden ? part.removeWord : part.addWord || "";
         span.dataset.cleverPending = String(Boolean(part.pending));
+        // Dictionary lookup uses the lemma, not the vocabulary entry to remove.
+        span.dataset.cleverLemma = part.addWord || "";
         if (part.id) span.dataset.cleverId = part.id;
         span.textContent = part.text;
         fragment.appendChild(span);
@@ -513,18 +547,6 @@
   function updateCaptions() {
     // YouTube adds/removes these nodes as captions change or are toggled.
     const segments = [...document.querySelectorAll(".ytp-caption-segment")];
-    const selection = activeElement && {
-      captionText: activeCaptionText,
-      text: activeElement.textContent,
-      word: activeElement.dataset.cleverWord,
-      id: activeElement.dataset.cleverId,
-      pending: activeElement.dataset.cleverPending === "true",
-      known: activeElement.classList.contains("clever-subtitle-known"),
-      rect: activeRect,
-      touch: touchSelection,
-      pinned: selectionPinned,
-      review: activeInReview
-    };
     const video = document.querySelector("video.html5-main-video") || document.querySelector("video");
     trackVideo(video);
     const texts = segments.map((segment) => segment.textContent || "");
@@ -536,37 +558,28 @@
     const analyzedParts = stream.parts(texts, knownWords, frame.units);
     segments.forEach((segment, index) => updateSegment(segment, analyzedParts[index], frame.streaming));
     updateCaptionHistory(texts, frame);
-    if (!selection) return;
     // YouTube may rebuild or split a caption when player controls appear.
     // Keep the selected word if the displayed sentence is still the same.
-    const selectedCaption = selection.review ? reviewedCaption?.key : captionText(texts);
-    const selectedSegments = selection.review && reviewedCaption ? [reviewCaption] : segments;
-    if (!selection.id && selection.captionText !== selectedCaption) {
-      hideWordButton();
-      return;
-    }
-    if (selectedSegments.some((segment) => segment.contains(activeElement))) {
-      showWordButton(activeElement, selection.touch, selection.pinned);
-      return;
-    }
-    const candidates = [...document.querySelectorAll(WORD_SELECTOR)].filter((element) =>
-      selectedSegments.some((segment) => segment.contains(element)) &&
-      (selection.id ? element.dataset.cleverId === selection.id :
-        element.textContent === selection.text &&
-        (selection.pending || (element.dataset.cleverWord === selection.word &&
-        element.classList.contains("clever-subtitle-known") === selection.known)))
-    );
-    candidates.sort((a, b) => {
-      const point = selection.rect;
-      if (!point) return 0;
-      const distance = (element) => {
-        const rect = element.getBoundingClientRect();
-        return Math.abs(rect.left - point.left) + Math.abs(rect.top - point.top);
-      };
-      return distance(a) - distance(b);
+    interaction.rebind((state) => {
+      if (state.review && !reviewedCaption) return null;
+      const key = state.review ? reviewedCaption.key : captionText(texts);
+      const captionSegments = state.review ? [reviewCaption] : segments;
+      if (!state.id && state.captionText !== key) return null;
+      let element = captionSegments.some((segment) => segment.contains(state.element)) ? state.element : null;
+      if (!element) {
+        const candidates = [...document.querySelectorAll(WORD_SELECTOR)].filter((word) =>
+          captionSegments.some((segment) => segment.contains(word)) &&
+          (state.id ? word.dataset.cleverId === state.id : word.textContent === state.text));
+        const distance = (word) => {
+          const rect = word.getBoundingClientRect();
+          return state.rect ? Math.abs(rect.left - state.rect.left) + Math.abs(rect.top - state.rect.top) : 0;
+        };
+        candidates.sort((a, b) => distance(a) - distance(b));
+        element = candidates[0];
+      }
+      return element ? { ...wordState(element, state.input), reveal: state.reveal } : null;
     });
-    if (candidates[0]) showWordButton(candidates[0], selection.touch, selection.pinned);
-    else hideWordButton();
+    renderInteraction();
   }
 
   function loadWords() {
@@ -586,7 +599,17 @@
   }
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (dictionary && areaName === "local" && changes[dictionary.STORAGE_KEY]) {
+      meanings?.setLanguage(changes[dictionary.STORAGE_KEY].newValue);
+    } else if (dictionary && areaName === "local" &&
+        (changes[dictionary.PROVIDER_KEY] || changes[dictionary.MICROSOFT_CONFIG_KEY] || changes[dictionary.PACK_REVISION_KEY])) {
+      meanings?.refresh();
+    }
     if (areaName === "local" && changes[STORAGE_KEY]) loadWords();
+  });
+
+  if (dictionary) chrome.storage.local.get(dictionary.STORAGE_KEY, (data) => {
+    if (!chrome.runtime.lastError) meanings?.setLanguage(data[dictionary.STORAGE_KEY]);
   });
 
   function wordAtPoint(target, x, y) {
@@ -646,6 +669,14 @@
   }
 
   function handleTouchStart(event, x, y, fromTouch = true) {
+    if (meanings?.contains(event.target, x, y)) {
+      const direct = Boolean(event.target?.closest?.(".clever-subtitle-meaning"));
+      blockedTouch = { control: "meaning", x, y, lastY: y, covered: !direct,
+        until: Date.now() + 900, released: false };
+      if (!direct) event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
     if (fromTouch) suppressMouseHoverUntil = Date.now() + 900;
     if (blockedTouch && !blockedTouch.released && isBlockedTouch(x, y)) {
       blockReviewTouch(event, blockedTouch);
@@ -671,7 +702,7 @@
     if (control) {
       blockedTouch = { ...control, x, y, until: Date.now() + 900, released: false, cancelled: false };
       if (control.control === "toggle") beginReviewDrag(blockedTouch, x, y);
-      hideWordButton();
+      leaveHoveredWord();
       blockReviewTouch(event, blockedTouch);
       return;
     }
@@ -679,18 +710,18 @@
     if (!element && reviewedCaption && (reviewPanel.contains(event.target) || pointInside(reviewPanel, x, y))) {
       blockedTouch = { control: "panel", element: reviewPanel, x, y, lastY: y,
         covered: !reviewPanel.contains(event.target), until: Date.now() + 900, released: false };
-      hideWordButton();
+      leaveHoveredWord();
       blockReviewTouch(event, blockedTouch);
       return;
     }
     if (review?.contains(event.target) && !event.target.closest?.(WORD_SELECTOR)) {
       blockedTouch = null;
-      hideWordButton();
+      leaveHoveredWord();
       return;
     }
     if (!element) {
       blockedTouch = null;
-      hideWordButton();
+      leaveHoveredWord();
       return;
     }
     blockedTouch = { x, y, until: Date.now() + 900, released: false };
@@ -704,12 +735,12 @@
       !document.documentElement.classList.contains("clever-subtitle-reveal-known");
     if (trackedVideo && !trackedVideo.paused) trackedVideo.pause();
     if (fromTouch && hidden) {
-      hideWordButton();
-      revealKnownHeld = true;
-      updateKnownVisibility();
+      clearTimeout(hideTimer);
+      hideTimer = null;
+      interaction.reveal(wordState(element, "touch"));
+      renderInteraction();
       return;
     }
-    if (!fromTouch && element.classList.contains("clever-subtitle-known")) revealKnownHeld = true;
     showWordButton(element, fromTouch, true);
   }
 
@@ -721,6 +752,15 @@
 
   function handleTouchMove(event, x, y) {
     const touch = blockedTouch;
+    if (touch?.control === "meaning") {
+      if (touch.covered) {
+        meanings.scroll(touch.lastY - y);
+        touch.lastY = y;
+        event.preventDefault();
+      }
+      event.stopImmediatePropagation();
+      return;
+    }
     if (!touch?.control || touch.released) return;
     moveReviewDrag(touch, x, y);
     if (Math.abs(x - touch.x) > 10 || Math.abs(y - touch.y) > 10) touch.cancelled = true;
@@ -735,6 +775,13 @@
   function handleTouchEnd(event, x, y) {
     const touch = blockedTouch;
     if (!touch) return;
+    if (touch.control === "meaning") {
+      touch.released = true;
+      touch.until = Date.now() + 900;
+      if (touch.covered) event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
     if (touch.control) {
       if (touch.released && !isBlockedTouch(x, y)) return;
       event.preventDefault();
@@ -767,7 +814,7 @@
   }
 
   document.addEventListener("mouseover", (event) => {
-    if (saving || selectionPinned || (Date.now() < suppressMouseHoverUntil &&
+    if (saving || (Date.now() < suppressMouseHoverUntil &&
         event.sourceCapabilities?.firesTouchEvents !== false) ||
         event.sourceCapabilities?.firesTouchEvents) return;
     if (event.target === wordButton) {
@@ -782,6 +829,7 @@
   window.addEventListener("pointerdown", (event) => {
     if (event.pointerType !== "touch") {
       if (event.button !== 0 || (!wordButtonAtPoint(event.target, event.clientX, event.clientY) &&
+          !meanings?.contains(event.target, event.clientX, event.clientY) &&
           !reviewControlAtPoint(event.target, event.clientX, event.clientY) &&
           !wordAtPoint(event.target, event.clientX, event.clientY))) return;
       suppressMouseHoverUntil = 0;
@@ -832,6 +880,10 @@
   }
 
   window.addEventListener("click", (event) => {
+    if (meanings?.contains(event.target, event.clientX, event.clientY)) {
+      event.stopImmediatePropagation();
+      return;
+    }
     if (event.detail !== 0 && blockedTouch?.control === "word" && isBlockedTouch(event.clientX, event.clientY)) {
       event.preventDefault();
       event.stopImmediatePropagation();
@@ -852,22 +904,21 @@
   }, true);
 
   document.addEventListener("mouseout", (event) => {
-    if (!activeElement || selectionPinned || touchSelection) return;
+    if (!interaction.hovered) return;
     if (event.target !== activeElement && event.target !== wordButton) return;
     const next = event.relatedTarget;
     if (next === activeElement || next === wordButton) return;
     clearTimeout(hideTimer);
-    hideTimer = setTimeout(hideWordButton, 250);
+    hideTimer = setTimeout(leaveHoveredWord, 250);
   });
 
-  window.addEventListener("scroll", positionWordButton, true);
+  window.addEventListener("scroll", renderInteraction, true);
   window.addEventListener("resize", () => {
-    positionWordButton();
+    renderInteraction();
     positionReview();
   });
   document.addEventListener("fullscreenchange", () => {
-    if (selectionPinned && activeElement) showWordButton(activeElement, touchSelection, true);
-    else hideWordButton();
+    renderInteraction();
     positionReview();
   });
   document.addEventListener("keydown", (event) => {

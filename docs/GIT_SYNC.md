@@ -12,7 +12,7 @@ tokens, SSH clone URLs, and login pages that need browser cookies are not suppor
 Use the final clone URL rather than a redirect.
 
 Enter the clone URL, user name, token or password, and optional branch in
-**My Vocabulary → Sync between devices**. Credentials can also be in the URL.
+**Settings → My Vocabulary → Sync between devices**. Credentials can also be in the URL.
 After saving, the page shows the repository URL without login details. An empty
 repository starts on `main` unless you choose a different branch.
 

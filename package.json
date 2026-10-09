@@ -1,16 +1,19 @@
 {
   "name": "clever-youtube-subtitle",
-  "version": "1.9.6",
+  "version": "1.10.0",
   "private": true,
   "scripts": {
     "build": "node build-nlp.cjs",
     "build:git": "node build-git.cjs",
-    "test": "node --test background.test.js caption-stream.test.js content.test.js nlp.test.js word-utils.test.js vocabulary.test.js sync-model.test.js sync-codec.test.js sync-git.test.js sync-access.test.js"
+    "build:dictionaries": "node build-dictionary-catalog.cjs",
+    "build:sqlite": "node build-sqlite.cjs",
+    "test": "node --test background.test.js caption-interaction.test.js caption-stream.test.js content.test.js dictionary.test.js dictionary-packs.test.js dictionary-manager.test.js wikdict-client.test.js microsoft-dictionary.test.js dictionary-settings.test.js nlp.test.js word-utils.test.js vocabulary.test.js sync-model.test.js sync-codec.test.js sync-git.test.js sync-access.test.js"
   },
   "dependencies": {
     "@isomorphic-git/lightning-fs": "4.10.3",
     "buffer": "6.0.3",
-    "isomorphic-git": "1.42.6"
+    "isomorphic-git": "1.42.6",
+    "sql.js": "1.14.2"
   },
   "devDependencies": {
     "esbuild": "0.28.2",

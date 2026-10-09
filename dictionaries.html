@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Offline dictionaries · Clever Youtube Subtitle</title>
+    <link rel="stylesheet" href="options.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="shell header-content">
+        <div class="mark" aria-hidden="true">C</div>
+        <div><p class="eyebrow">CLEVER YOUTUBE SUBTITLE</p><h1>Offline dictionaries</h1>
+          <p class="subtitle">Download only the languages you need.</p></div>
+      </div>
+    </header>
+    <main class="shell">
+      <p class="back-link"><a href="options.html#dictionary">← Settings</a></p>
+      <section class="card" aria-labelledby="packs-heading">
+        <h2 id="packs-heading">WikDict</h2>
+        <p class="section-help">No dictionaries are included when you install the extension. Download or import one here, then choose WikDict under Dictionary. Once saved, it works offline. Some words or meanings may be missing.</p>
+        <p id="packs-summary" class="sync-help">Loading installed dictionaries…</p>
+        <label class="field-label dictionary-search-label" for="packs-search">Search languages</label>
+        <input id="packs-search" type="search" autocomplete="off" spellcheck="false" placeholder="English name, native name, or code">
+        <p id="packs-matching" class="sync-help" role="status" aria-live="polite"></p>
+        <div id="packs-list" class="dictionary-pack-list"></div>
+        <p id="packs-empty" class="empty-state" hidden>No languages found. Try another name or code.</p>
+        <p id="packs-status" class="sync-status" role="status" aria-live="polite"></p>
+      </section>
+      <section class="card dictionary-card" aria-labelledby="import-dictionary-heading">
+        <h2 id="import-dictionary-heading">Import a dictionary file</h2>
+        <p class="section-help">Download reads files directly from WikDict. If it does not work, select Get file to save the official .sqlite3 file, then import it here. You can also move that file to your phone.</p>
+        <label class="field-label" for="packs-file">Choose a dictionary file</label>
+        <input id="packs-file" type="file" accept=".sqlite3,.sqlite,application/vnd.sqlite3">
+        <button id="packs-import" class="primary" type="button" disabled>Import file</button>
+      </section>
+      <section class="card dictionary-card" aria-labelledby="dictionary-source-heading">
+        <h2 id="dictionary-source-heading">Source and license</h2>
+        <p class="section-help">Data: WikDict by Karl Bartel, from Wiktionary contributors through DBnary. Dictionary data uses CC BY-SA 4.0. Files come from WikDict's official server and are read on this device. The extension code uses MIT.</p>
+        <p class="sync-help"><a href="https://www.wikdict.com/page/download" target="_blank" rel="noreferrer">WikDict</a> · <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a> · <a href="third-party/WikDict-NOTICE.txt" target="_blank">Changes and full notice</a></p>
+      </section>
+    </main>
+    <script src="word-utils.js"></script>
+    <script src="dictionary-catalog.js"></script>
+    <script src="dictionary.js"></script>
+    <script src="dictionary-store.js"></script>
+    <script src="dictionary-packs.js"></script>
+    <script src="wikdict-client.js"></script>
+    <script src="sync-access.js"></script>
+    <script src="dictionary-manager.js"></script>
+  </body>
+</html>

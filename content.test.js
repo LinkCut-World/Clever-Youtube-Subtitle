@@ -4,9 +4,12 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 const words = require("./word-utils.js");
 const streams = require("./caption-stream.js");
+const interactions = require("./caption-interaction.js");
 const originalModel = require("./nlp-test-helper.cjs");
 test.before(originalModel.loadEngine);
 const cachedNLP = { peek: originalModel.analyze };
+const dictionary = require("./dictionary.js");
+const offlineDictionary = dictionary.createDictionary(require("./dictionary-test-helper.cjs").load);
 
 class FakeText {
   constructor(text) {
@@ -105,6 +108,11 @@ class FakeElement {
   getAttribute(name) { return this[name] ?? null; }
   focus() { this.focused = true; }
   getBoundingClientRect() {
+    if (this.classList.contains("clever-subtitle-meaning")) {
+      const left = parseFloat(this.style.left || "0"), top = parseFloat(this.style.top || "0");
+      const width = parseFloat(this.style.width || "320"), height = Math.min(160, parseFloat(this.style.maxHeight || "260"));
+      return { left, top, right: left + width, bottom: top + height, width, height };
+    }
     if (this.classList.contains("clever-subtitle-word-button")) {
       const left = parseFloat(this.style.left || "0");
       const top = parseFloat(this.style.top || "0");
@@ -121,7 +129,7 @@ class FakeElement {
   }
   getClientRects() { return []; }
   get offsetWidth() { return 28; }
-  get offsetHeight() { return 28; }
+  get offsetHeight() { return this.classList.contains("clever-subtitle-meaning") ? 160 : 28; }
 }
 
 test("caption words keep spacing and can be added or removed from the hover button", async () => {
@@ -137,6 +145,7 @@ test("caption words keep spacing and can be added or removed from the hover butt
   const context = {
     CleverSubtitleWords: words,
     CleverSubtitleStream: streams,
+    CleverSubtitleInteraction: interactions,
     CleverSubtitleNLP: cachedNLP,
     Node: { ELEMENT_NODE: 1 },
     setTimeout,
@@ -382,7 +391,8 @@ test("caption words keep spacing and can be added or removed from the hover butt
   assert.equal(button.hidden, true);
 });
 
-function createPlayer({ paused = false, knownWords = [], nlp = cachedNLP, deferVocabularyRead = false } = {}) {
+function createPlayer({ paused = false, knownWords = [], nlp = cachedNLP, deferVocabularyRead = false,
+    dictionaryLanguage, dictionaryLookup = offlineDictionary.lookup } = {}) {
   const body = new FakeElement();
   const player = new FakeElement();
   player.className = "html5-video-player";
@@ -418,15 +428,19 @@ function createPlayer({ paused = false, knownWords = [], nlp = cachedNLP, deferV
   let savedWords = knownWords;
   let onPlayerResize;
   let vocabularyCallback;
+  let selectedDictionaryLanguage = dictionaryLanguage;
+  const dictionaryRequests = [];
   const context = {
     CleverSubtitleWords: words,
     CleverSubtitleStream: streams,
+    CleverSubtitleInteraction: interactions,
     CleverSubtitleNLP: nlp,
     Node: { ELEMENT_NODE: 1 },
     setTimeout,
     clearTimeout,
     window: {
       innerWidth: 1200,
+      innerHeight: 720,
       addEventListener(type, listener) { windowListeners[type] = listener; }
     },
     document: {
@@ -445,7 +459,12 @@ function createPlayer({ paused = false, knownWords = [], nlp = cachedNLP, deferV
     chrome: {
       runtime: {
         lastError: null,
-        async sendMessage({ type, mutation }) {
+        async sendMessage(message) {
+          const { type, mutation } = message;
+          if (type === "dictionary:lookup") {
+            dictionaryRequests.push(message);
+            return { ok: true, result: await dictionaryLookup(message) };
+          }
           assert.equal(type, "vocab:mutate");
           const next = new Set(savedWords);
           for (const word of mutation.add || []) next.add(word);
@@ -458,6 +477,10 @@ function createPlayer({ paused = false, knownWords = [], nlp = cachedNLP, deferV
       storage: {
         local: {
           get: (_key, callback) => {
+            if (_key === dictionary.STORAGE_KEY) {
+              const data = { [dictionary.STORAGE_KEY]: selectedDictionaryLanguage };
+              return callback ? callback(data) : Promise.resolve(data);
+            }
             if (!callback) return Promise.resolve({ knownWords: savedWords });
             if (deferVocabularyRead) vocabularyCallback = callback;
             else callback({ knownWords: savedWords });
@@ -481,6 +504,11 @@ function createPlayer({ paused = false, knownWords = [], nlp = cachedNLP, deferV
     }
   };
   context.globalThis = context;
+  if (dictionaryLanguage !== undefined) {
+    vm.runInNewContext(fs.readFileSync("dictionary-catalog.js", "utf8"), context);
+    vm.runInNewContext(fs.readFileSync("dictionary.js", "utf8"), context);
+    vm.runInNewContext(fs.readFileSync("word-meaning.js", "utf8"), context);
+  }
   vm.runInNewContext(fs.readFileSync("content.js", "utf8"), context);
   const mutate = (target = captions, { addedNodes = [], removedNodes = [] } = {}) =>
     onMutation([{ target, addedNodes, removedNodes }]);
@@ -512,6 +540,12 @@ function createPlayer({ paused = false, knownWords = [], nlp = cachedNLP, deferV
   return {
     body, player, video, cc, captions, context, documentListeners, windowListeners, setCaption, setCaptionRows, mutate,
     savedWords: () => Array.from(savedWords),
+    dictionaryRequests,
+    setDictionaryLanguage(next) {
+      selectedDictionaryLanguage = next;
+      onStorageChanged({ [dictionary.STORAGE_KEY]: { newValue: next } }, "local");
+    },
+    refreshDictionarySettings(changes) { onStorageChanged(changes, "local"); },
     resizePlayer: () => onPlayerResize?.(),
     loadVocabulary: () => vocabularyCallback({ knownWords: savedWords }),
     setKnownWords(next) { savedWords = next; onStorageChanged({ knownWords: {} }, "local"); },
@@ -533,6 +567,384 @@ function emitTouch(app, type, target, x, y, extra = {}) {
   });
   return result;
 }
+
+const settleMeanings = () => new Promise((resolve) => setImmediate(resolve));
+function selectWithMouse(app, word) {
+  const rect = word.getBoundingClientRect();
+  const x = (rect.left + rect.right) / 2, y = (rect.top + rect.bottom) / 2;
+  emitTouch(app, "pointerdown", word, x, y, { pointerType: "mouse", button: 0 });
+  emitTouch(app, "pointerup", word, x, y, { pointerType: "mouse", button: 0 });
+}
+
+function interactionScene(options = {}) {
+  const app = createPlayer({ knownWords: ["like", "give"], dictionaryLanguage: "zh", ...options });
+  app.setCaption("I like this");
+  app.setCaption("It gives conditions");
+  app.click(app.find(".clever-subtitle-review-toggle"));
+  const placeWords = () => {
+    for (const [location, caption] of [["current", app.captions], ["review", app.find(".clever-subtitle-review-caption")]]) {
+      const words = caption.querySelectorAll(".clever-subtitle-known, .clever-subtitle-unknown");
+      words.forEach((word, index) => {
+        const left = location === "current" ? 700 + index * 90 : 60 + index * 145;
+        const top = location === "current" ? 430 : 150;
+        word.getBoundingClientRect = () => ({ left, top, right: left + 55, bottom: top + 24, width: 55, height: 24 });
+        word.getClientRects = () => [word.getBoundingClientRect()];
+      });
+    }
+  };
+  placeWords();
+  const getWord = (text, location) => (location === "current" ? app.captions : app.find(".clever-subtitle-review-caption"))
+    .querySelectorAll(".clever-subtitle-known, .clever-subtitle-unknown").find((word) => word.textContent === text);
+  return { app, getWord, placeWords, known: (location) => getWord(location === "current" ? "gives" : "like", location),
+    visible: (location) => getWord(location === "current" ? "conditions" : "this", location) };
+}
+
+test("desktop click, hover, reflow and save keep the word card separate from the temporary button", async () => {
+  for (const selectedLocation of ["current", "review"]) for (const hoverLocation of ["current", "review"]) {
+    const { app, known, visible, placeWords } = interactionScene();
+    const selectedText = visible(selectedLocation).textContent;
+    const hoveredText = known(hoverLocation).textContent;
+    selectWithMouse(app, visible(selectedLocation));
+    await settleMeanings();
+    const card = app.find(".clever-subtitle-meaning");
+    const heading = card.querySelector(".clever-subtitle-meaning-word").textContent;
+    const pauses = app.video.pauseCalls, requests = app.dictionaryRequests.length;
+    assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), false);
+    app.hover(known(hoverLocation));
+    assert.equal(app.find(".clever-subtitle-active").textContent, hoveredText);
+    assert.equal(app.find(".clever-subtitle-word-button").textContent, "−");
+    assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), true);
+    assert.equal(card.querySelector(".clever-subtitle-meaning-word").textContent, heading);
+    app.setCaption("It gives", "conditions");
+    placeWords();
+    app.mutate();
+    assert.equal(app.find(".clever-subtitle-active").textContent, hoveredText);
+    assert.equal(card.querySelector(".clever-subtitle-meaning-word").textContent, heading);
+    const button = app.find(".clever-subtitle-word-button");
+    await app.click(button);
+    assert.ok(!app.savedWords().includes(hoverLocation === "current" ? "give" : "like"));
+    assert.equal(button.textContent, "+");
+    assert.equal(card.querySelector(".clever-subtitle-meaning-word").textContent, heading,
+      "Changing the hovered word must not change the clicked word's dictionary card");
+    app.documentListeners.mouseout({ target: known(hoverLocation), relatedTarget: null });
+    await new Promise((resolve) => setTimeout(resolve, 270));
+    assert.equal(app.find(".clever-subtitle-active").textContent, selectedText);
+    assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), false);
+    assert.equal(app.dictionaryRequests.length, requests, "Hovering and saving must not query another word");
+    assert.equal(app.video.pauseCalls, pauses);
+    app.context.document.fullscreenElement = app.player;
+    app.documentListeners.fullscreenchange();
+    assert.equal(card.parentElement, app.player);
+    await app.video.play();
+    assert.equal(card.hidden, true);
+    assert.equal(button.hidden, true);
+  }
+});
+
+test("desktop clicking a fully visible word replaces a known-word reveal across both caption views", async () => {
+  for (const hiddenLocation of ["current", "review"]) for (const visibleLocation of ["current", "review"]) {
+    const { app, known, visible } = interactionScene();
+    selectWithMouse(app, known(hiddenLocation));
+    await settleMeanings();
+    assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), true);
+    app.hover(visible(visibleLocation));
+    assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), true,
+      "A temporary visible-word hover must not cancel the clicked known-word reveal");
+    selectWithMouse(app, visible(visibleLocation));
+    await settleMeanings();
+    assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), false);
+    assert.equal(app.find(".clever-subtitle-active"), visible(visibleLocation));
+    assert.equal(app.find(".clever-subtitle-word-button").textContent, "+");
+    const card = app.find(".clever-subtitle-meaning");
+    const heading = card.querySelector(".clever-subtitle-meaning-word").textContent;
+    await app.click(app.find(".clever-subtitle-word-button"));
+    assert.equal(app.find(".clever-subtitle-word-button").textContent, "−");
+    assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), false,
+      "Saving a word does not reinterpret the last click as a hidden-word click");
+    assert.equal(card.querySelector(".clever-subtitle-meaning-word").textContent, heading);
+    app.hover(known(hiddenLocation));
+    assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), true);
+    await app.video.play();
+    assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), false);
+    assert.equal(app.find(".clever-subtitle-word-button").hidden, true);
+    assert.equal(card.hidden, true);
+  }
+});
+
+test("mobile reveal, faint selection, visible selection and repeat reveal use one transition per physical tap", async () => {
+  for (const paths of [["pointer"], ["touch"], ["pointer", "touch"]]) {
+    for (const hiddenLocation of ["current", "review"]) for (const visibleLocation of ["current", "review"]) {
+      const { app, known, visible } = interactionScene();
+      const tap = (word) => {
+        const rect = word.getBoundingClientRect(), x = rect.left + 25, y = rect.top + 12;
+        for (const path of paths) emitTouch(app, path === "pointer" ? "pointerdown" : "touchstart", app.player, x, y);
+        for (const path of paths) emitTouch(app, path === "pointer" ? "pointerup" : "touchend", app.player, x, y);
+        emitTouch(app, "click", app.player, x, y, { detail: 1 });
+      };
+      tap(known(hiddenLocation));
+      await settleMeanings();
+      assert.equal(app.find(".clever-subtitle-word-button"), null);
+      assert.equal(app.dictionaryRequests.length, 0);
+      tap(known(hiddenLocation));
+      await settleMeanings();
+      assert.equal(app.find(".clever-subtitle-word-button").textContent, "−");
+      assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), true);
+      tap(visible(visibleLocation));
+      await settleMeanings();
+      assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), false);
+      assert.equal(app.find(".clever-subtitle-active"), visible(visibleLocation));
+      const requests = app.dictionaryRequests.length;
+      tap(known(hiddenLocation));
+      await settleMeanings();
+      assert.equal(app.find(".clever-subtitle-word-button").hidden, true);
+      assert.equal(app.find(".clever-subtitle-meaning").hidden, true);
+      assert.equal(app.dictionaryRequests.length, requests, "The next hidden tap must reveal only again");
+      tap(known(hiddenLocation));
+      await settleMeanings();
+      const card = app.find(".clever-subtitle-meaning");
+      assert.equal(card.hidden, false);
+      assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), true);
+      app.documentListeners.mouseover({ target: visible(visibleLocation), sourceCapabilities: { firesTouchEvents: true } });
+      assert.equal(app.find(".clever-subtitle-active"), known(hiddenLocation));
+      assert.equal(app.video.pauseCalls, 1);
+      assert.equal(app.video.currentTime, 24);
+      assert.deepEqual(app.savedWords(), ["like", "give"]);
+    }
+  }
+});
+
+test("closing review or dropping one word does not clear a selected word in the other caption", async () => {
+  const { app, known, visible } = interactionScene({ paused: true });
+  selectWithMouse(app, visible("current"));
+  await settleMeanings();
+  const card = app.find(".clever-subtitle-meaning");
+  app.hover(known("review"));
+  app.click(app.find(".clever-subtitle-review-close"));
+  assert.equal(app.find(".clever-subtitle-active"), visible("current"));
+  assert.equal(card.hidden, false);
+  assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), false);
+  assert.equal(app.video.playCalls, 0, "Closing review preserves a video that was already paused");
+  app.click(app.find(".clever-subtitle-review-toggle"));
+  selectWithMouse(app, known("review"));
+  await settleMeanings();
+  app.hover(visible("current"));
+  app.setCaption("The current words are gone");
+  assert.equal(app.find(".clever-subtitle-active"), known("review"));
+  assert.equal(card.hidden, false);
+  assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), true);
+  app.video.seeking = true;
+  app.video.listeners.seeking({ type: "seeking" });
+  assert.equal(card.hidden, true);
+  assert.equal(app.find(".clever-subtitle-word-button").hidden, true);
+  assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), false);
+});
+
+test("word cards show only a base form and at most three different displayed entries", async () => {
+  const app = createPlayer({ dictionaryLanguage: "zh", dictionaryLookup: async () => ({ word: "condition", entries: [
+    { pos: "noun", translations: ["条件"] }, { pos: "noun", translations: ["条件"] },
+    { pos: "noun", translations: ["情况"] }, { pos: "verb", translations: ["调节"] },
+    { pos: "noun", translations: ["状态"] }
+  ] }) });
+  const [caption] = app.setCaption("These conditions matter.");
+  selectWithMouse(app, caption.querySelectorAll(".clever-subtitle-unknown")[1]);
+  await settleMeanings();
+  const card = app.find(".clever-subtitle-meaning");
+  assert.equal(card.querySelector(".clever-subtitle-meaning-word").textContent, "condition");
+  assert.equal(card.querySelectorAll(".clever-subtitle-meaning-entry").length, 3);
+  assert.doesNotMatch(card.textContent, /conditions|→|状态|Common meanings|WikDict|Offline/);
+});
+
+test("offline word cards appear on desktop clicks in current and previous captions, using the lemma independently of removal", async () => {
+  for (const inReview of [false, true]) {
+    const app = createPlayer({ dictionaryLanguage: "zh", knownWords: ["understanding"] });
+    const [current] = app.setCaption("His focus was on understanding what happens.");
+    let caption = current;
+    if (inReview) {
+      app.setCaption("A new sentence.");
+      app.click(app.find(".clever-subtitle-review-toggle"));
+      caption = app.find(".clever-subtitle-review-caption");
+    }
+    const selected = caption.querySelectorAll(".clever-subtitle-known").find((word) => word.textContent === "understanding");
+    assert.equal(selected.dataset.cleverWord, "understanding");
+    assert.equal(selected.dataset.cleverLemma, "understand");
+    app.hover(selected);
+    assert.equal(app.find(".clever-subtitle-meaning"), null);
+    assert.equal(app.dictionaryRequests.length, 0);
+    selectWithMouse(app, selected);
+    await settleMeanings();
+    const card = app.find(".clever-subtitle-meaning");
+    assert.equal(card.hidden, false);
+    assert.equal(card.querySelector(".clever-subtitle-meaning-word").textContent, "understand");
+    assert.match(card.textContent, /明白/);
+    assert.equal(app.video.paused, true);
+    assert.equal(app.find(".clever-subtitle-word-button").textContent, "−");
+    app.mutate(caption);
+    await settleMeanings();
+    assert.equal(app.dictionaryRequests.length, 1, "Re-rendering must not repeatedly look up the same word");
+    const fullscreen = new FakeElement();
+    app.body.appendChild(fullscreen);
+    app.context.document.fullscreenElement = fullscreen;
+    app.documentListeners.fullscreenchange();
+    assert.equal(card.parentElement, fullscreen);
+    await app.video.play();
+    assert.equal(card.hidden, true);
+  }
+});
+
+test("mobile reveal-only taps do not query dictionaries, while the second tap opens a card without changing vocabulary", async () => {
+  for (const inReview of [false, true]) {
+    const app = createPlayer({ dictionaryLanguage: "zh", knownWords: ["give"] });
+    const [current] = app.setCaption("It gives you a result.");
+    let caption = current;
+    if (inReview) {
+      app.setCaption("Now another sentence.");
+      app.click(app.find(".clever-subtitle-review-toggle"));
+      caption = app.find(".clever-subtitle-review-caption");
+    }
+    const word = caption.querySelector(".clever-subtitle-known");
+    const tap = () => {
+      for (const type of ["pointerdown", "touchstart", "pointerup", "touchend"]) emitTouch(app, type, word, 125, 210);
+    };
+    tap();
+    await settleMeanings();
+    assert.equal(app.find(".clever-subtitle-meaning"), null);
+    assert.equal(app.dictionaryRequests.length, 0);
+    tap();
+    await settleMeanings();
+    const card = app.find(".clever-subtitle-meaning");
+    assert.equal(card.hidden, false);
+    assert.equal(card.querySelector(".clever-subtitle-meaning-word").textContent, "give");
+    assert.match(card.textContent, /给/);
+    assert.equal(app.dictionaryRequests.length, 1);
+    assert.deepEqual(app.savedWords(), ["give"]);
+    assert.equal(app.find(".clever-subtitle-word-button").textContent, "−");
+  }
+  const app = createPlayer({ dictionaryLanguage: "zh" });
+  const [caption] = app.setCaption("I like this.");
+  const word = caption.querySelectorAll(".clever-subtitle-unknown").find((node) => node.textContent === "like");
+  emitTouch(app, "pointerdown", word, 125, 210);
+  emitTouch(app, "pointerup", word, 125, 210);
+  await settleMeanings();
+  assert.match(app.find(".clever-subtitle-meaning").textContent, /喜欢/);
+});
+
+test("old dictionary replies cannot replace another word, another language, or a closed card", async () => {
+  const pending = [];
+  const app = createPlayer({ dictionaryLanguage: "zh", dictionaryLookup: (query) => new Promise((resolve) => pending.push({ query, resolve })) });
+  const [caption] = app.setCaption("I like the bank.");
+  const words = caption.querySelectorAll(".clever-subtitle-unknown");
+  selectWithMouse(app, words.find((word) => word.textContent === "like"));
+  await settleMeanings();
+  selectWithMouse(app, words.find((word) => word.textContent === "bank."));
+  await settleMeanings();
+  app.setDictionaryLanguage("es");
+  await settleMeanings();
+  const answer = (task, translation) => task.resolve({ word: task.query.lemma, language: task.query.language,
+    entries: [{ pos: "noun", translations: [translation] }] });
+  answer(pending[2], "banco");
+  await settleMeanings();
+  const card = app.find(".clever-subtitle-meaning");
+  assert.match(card.textContent, /banco/);
+  answer(pending[0], "喜欢"); answer(pending[1], "银行");
+  await settleMeanings();
+  assert.match(card.textContent, /banco/);
+  assert.doesNotMatch(card.textContent, /喜欢|银行/);
+  selectWithMouse(app, words.find((word) => word.textContent === "like"));
+  await settleMeanings();
+  await app.video.play();
+  answer(pending[3], "gustar");
+  await settleMeanings();
+  assert.equal(card.hidden, true);
+});
+
+test("word cards allow scrolling and block the player, stay inside a phone viewport, and reset on seeking", async () => {
+  const app = createPlayer({ dictionaryLanguage: "zh" });
+  app.context.window.innerWidth = 360;
+  app.context.window.innerHeight = 640;
+  const [caption] = app.setCaption("I like this.");
+  const word = caption.querySelectorAll(".clever-subtitle-unknown").find((node) => node.textContent === "like");
+  word.getBoundingClientRect = () => ({ left: 160, right: 200, top: 590, bottom: 615, width: 40, height: 25 });
+  emitTouch(app, "pointerdown", word, 180, 600);
+  emitTouch(app, "pointerup", word, 180, 600);
+  await settleMeanings();
+  const card = app.find(".clever-subtitle-meaning"), rect = card.getBoundingClientRect();
+  assert.ok(rect.left >= 8 && rect.right <= 352);
+  assert.ok(rect.top >= 8 && rect.bottom <= 590 - 28);
+  const x = rect.left + 10, y = rect.top + 10;
+  const pauses = app.video.pauseCalls;
+  const direct = emitTouch(app, "pointerdown", card, x, y);
+  assert.equal(direct.blocked, true);
+  assert.equal(direct.prevented, false, "Direct card touches must retain native scrolling");
+  emitTouch(app, "pointerup", card, x, y);
+  const covered = emitTouch(app, "pointerdown", app.player, x, y);
+  assert.equal(covered.blocked, true);
+  emitTouch(app, "pointermove", app.player, x, y - 20);
+  emitTouch(app, "pointerup", app.player, x, y - 20);
+  assert.equal(card.scrollTop, 20);
+  assert.equal(app.video.pauseCalls, pauses);
+  assert.deepEqual(app.savedWords(), []);
+  app.video.seeking = true;
+  app.video.listeners.seeking({ type: "seeking" });
+  assert.equal(card.hidden, true);
+});
+
+test("word cards explain an unset language, show missing meanings, and retry a failed local lookup", async () => {
+  let fail = true;
+  const app = createPlayer({ dictionaryLanguage: "off", dictionaryLookup: async (query) => {
+    if (fail) { fail = false; throw new Error("Could not load the offline dictionary."); }
+    return offlineDictionary.lookup(query);
+  } });
+  const [caption] = app.setCaption("qqqnotarealwordqqq");
+  const word = caption.querySelector(".clever-subtitle-unknown");
+  selectWithMouse(app, word);
+  await settleMeanings();
+  const card = app.find(".clever-subtitle-meaning");
+  assert.match(card.textContent, /Choose a language/);
+  assert.equal(app.dictionaryRequests.length, 0);
+  app.setDictionaryLanguage("zh");
+  await settleMeanings();
+  assert.match(card.textContent, /Could not load/);
+  selectWithMouse(app, word);
+  await settleMeanings();
+  assert.match(card.textContent, /No meaning found/);
+});
+
+test("perilous has a readable grammar label and no unexplained reverse translation or footer", async () => {
+  const app = createPlayer({ dictionaryLanguage: "zh" });
+  const [caption] = app.setCaption("A perilous journey.");
+  const word = caption.querySelectorAll(".clever-subtitle-unknown").find((node) => node.textContent === "perilous");
+  selectWithMouse(app, word);
+  await settleMeanings();
+  const card = app.find(".clever-subtitle-meaning");
+  assert.match(card.textContent, /形容词: 危险/);
+  assert.doesNotMatch(card.textContent, /岌|Common meanings|WikDict|Offline|adjective/);
+  assert.equal(card.querySelector(".clever-subtitle-meaning-source"), null);
+  app.setDictionaryLanguage("es");
+  await settleMeanings();
+  assert.match(card.textContent, /adjetivo: /);
+});
+
+test("changing the meaning provider or key refreshes a selected card and rejects its old response", async () => {
+  const pending = [];
+  const app = createPlayer({ dictionaryLanguage: "zh-Hans", dictionaryLookup: (query) =>
+    new Promise((resolve) => pending.push({ query, resolve })) });
+  const [caption] = app.setCaption("conditions");
+  selectWithMouse(app, caption.querySelector(".clever-subtitle-unknown"));
+  await settleMeanings();
+  app.refreshDictionarySettings({ [dictionary.PROVIDER_KEY]: { newValue: "microsoft" },
+    [dictionary.MICROSOFT_CONFIG_KEY]: { newValue: { key: "test-key" } } });
+  await settleMeanings();
+  assert.equal(pending.length, 2);
+  const result = (translation) => ({ word: "condition", language: "zh-Hans",
+    entries: [{ pos: "noun", translations: [translation] }] });
+  pending[1].resolve(result("new meaning")); await settleMeanings();
+  const card = app.find(".clever-subtitle-meaning");
+  assert.match(card.textContent, /condition.*名词: new meaning/);
+  pending[0].resolve(result("old meaning")); await settleMeanings();
+  assert.doesNotMatch(card.textContent, /old meaning/);
+  assert.equal(pending[1].query.lemma, "condition");
+  assert.equal(pending[1].query.key, undefined, "Content scripts never send the Microsoft key");
+});
 
 function movableReview(app, { scale = 1 } = {}) {
   const geometry = { left: 80, top: 60, width: 640, height: 420, scale };
@@ -586,7 +998,8 @@ test("a separate covered tap changes a word on release without waiting for a nat
     assert.equal(emitTouch(app, "click", app.player, x, y).blocked, true,
       "The following synthetic click must not reach YouTube");
     assert.equal(segment.querySelector(".clever-subtitle-known").textContent, "likes");
-    assert.equal(button.hidden, true);
+    assert.equal(button.hidden, false, "Changing vocabulary keeps the current word target");
+    assert.equal(button.textContent, "−");
   }
 });
 
@@ -867,7 +1280,8 @@ test("covered review panel selects its words, clips hidden text, and scrolls wit
 
   reviewedWord.getClientRects = () => [{ ...rect, top: 300, bottom: 310 }];
   emitTouch(app, "touchstart", app.player, 125, 305);
-  assert.equal(app.find(".clever-subtitle-word-button").hidden, true);
+  assert.equal(app.find(".clever-subtitle-word-button").hidden, false,
+    "Touching empty panel space does not clear an existing word selection");
   emitTouch(app, "touchend", app.player, 125, 305);
 
   assert.equal(emitTouch(app, "pointerdown", app.player, 400, 150).prevented, true);
@@ -948,7 +1362,8 @@ test("touching a covered current caption pauses once and preserves selection thr
   assert.deepEqual(app.savedWords(), ["like"]);
   assert.equal(app.video.paused, true);
   assert.equal(app.video.playCalls, 0);
-  assert.equal(button.hidden, true);
+  assert.equal(button.hidden, false, "Saving does not dismiss a selected word");
+  assert.equal(button.textContent, "−");
 });
 
 test("desktop hover and outside touches preserve playback while resuming clears a touch selection", () => {
@@ -1005,7 +1420,7 @@ test("desktop hover reveals all known words across both captions and leaves play
   assert.equal(app.video.pauseCalls, 1);
 });
 
-test("desktop word clicks pause and pin through mouse leave, other hovers and native reflow", () => {
+test("desktop word clicks survive mouse leave and native reflow while other hovers temporarily replace the button", async () => {
   for (const location of ["current", "review"]) {
     for (const known of [false, true]) {
       for (const covered of [false, true]) {
@@ -1034,8 +1449,12 @@ test("desktop word clicks pause and pin through mouse leave, other hovers and na
         app.documentListeners.mouseout({ target: likes, relatedTarget: null });
         app.hover(wordsInCaption[2]);
         assert.equal(button.hidden, false);
+        assert.equal(caption.querySelector(".clever-subtitle-active").textContent, "her",
+          "Hovering another word temporarily moves the button");
+        app.documentListeners.mouseout({ target: wordsInCaption[2], relatedTarget: null });
+        await new Promise((resolve) => setTimeout(resolve, 270));
         assert.equal(caption.querySelector(".clever-subtitle-active").textContent, "likes",
-          "Hovering another word must not replace the clicked word");
+          "Leaving the hovered word restores the clicked word's button");
         if (location === "current") {
           app.setCaption("He likes", "her");
           assert.equal(button.hidden, false);
@@ -1137,8 +1556,8 @@ test("mobile hidden-word taps reveal both captions before a separate visible-wor
       you.getClientRects = () => [you.getBoundingClientRect()];
       tap(you);
       assert.equal(button.textContent, "+");
-      assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), true,
-        "Selecting a different visible word must not cancel the held reveal");
+      assert.equal(app.body.classList.contains("clever-subtitle-reveal-known"), false,
+        "Selecting a fully visible word replaces the previous reveal intent");
       assert.equal(app.video.pauseCalls, 1);
       assert.deepEqual(app.savedWords(), ["he", "like", "give"]);
       app.video.play();
